@@ -29,7 +29,8 @@
 		import Reveal from './dist/reveal.mjs';
 		import RevealHighlight from './dist/plugin/highlight.mjs';
 		import RevealNotes from './dist/plugin/notes.mjs';
-		import mermaid from 'mermaid';
+		// Use CDN ESM so GitHub Pages can run without bundling.
+		import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
 
 		const SLIDE_FILES = [
 			'slides/01-intro.html',

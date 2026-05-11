@@ -6,8 +6,7 @@
 		<h2>Flash 控制器与 XIP 机制</h2>
 		<div class="two-col">
 			<div>
-				<img src="/xip-fsm.drawio.png" alt="XIP FSM"
-					style="max-width: 100%; max-height: 360px; border-radius: 6px; border: 1px solid #ddd;" />
+				<img src="/xip-fsm.drawio.png" alt="XIP FSM" style="max-width: 70%;" />
 				<p class="small center">APB XIP 控制器状态转移图（8 态）</p>
 			</div>
 			<div style="font-size: 0.78em; line-height: 1.7;">
@@ -32,54 +31,72 @@
 		<div class="two-col-3-2">
 			<div>
 				<div style="font-size: 0.7em; line-height: 1.7;">
-					<p>使用 <strong>Chisel</strong> 重新实现完整 QSPI Master，APB 接口，支持<strong>标准 QSPI ↔ QPI</strong>（四线半双工）模式切换。
-					</p>
-					<p>控制器内部由三个子模块构成：</p>
+					<p><strong>PSRAM（Pseudo-SRAM）</strong> 通过 QSPI（Quad SPI）协议访问外部存储器。
+						本课题参考 OpenCores SPI 设计思路，使用 <strong>Chisel</strong> 重新实现完整 QSPI Master，
+						采用 APB 接口并支持 <strong>QSPI ↔ QPI</strong>（四线半双工）模式切换。</p>
+					<p>控制器内部由状态机统一调度两类核心子模块，完成 APB 事务到串行时序的映射：</p>
 				</div>
 				<div class="four-grid" style="font-size: 0.7em; margin-top: 0.4em;">
 					<div class="grid-item" style="border-top-color: #2980b9;">
 						<h4>FSM</h4>
-						<p>协调 APB 总线事务与 SPI 传输流程</p>
+						<p>协调 APB 总线事务与 SPI 传输流程，统一发出控制信号</p>
 					</div>
 					<div class="grid-item" style="border-top-color: #e67e22;">
 						<h4>Clgen</h4>
-						<p>分频生成 SPI 时钟，提供采样/驱动边沿</p>
+						<p>时钟分频器，生成 sClk 及 posEdge/negEdge 边沿时序</p>
 					</div>
 					<div class="grid-item" style="border-top-color: #27ae60;">
 						<h4>Shift</h4>
-						<p>串并转换；tipDone/last 通知 FSM 完成</p>
+						<p>移位寄存器，完成串并转换并向 FSM 回传 tipDone/last</p>
 					</div>
 					<div class="grid-item" style="border-top-color: #8e44ad;">
 						<h4>仿真模型</h4>
-						<p>ISSI IS66WVS4M8 行为级模型 + 协议级 UVM</p>
+						<p>参照 ISSI IS66WVS4M8ALL/BLL 手册实现行为级模型</p>
 					</div>
 				</div>
 			</div>
-			<div style="font-size: 0.7em;">
-				<h4 style="color: #2c3e50; font-size: 0.95em;">控制流程（go → tipDone）</h4>
-				<div class="fsm-container" style="font-size: 0.75em;">
-					<span class="fsm-state idle">idle</span>
-					<span class="fsm-arrow">→</span>
-					<span class="fsm-state">cmd</span>
-					<span class="fsm-arrow">→</span>
-					<span class="fsm-state">addr</span>
-					<span class="fsm-arrow">→</span>
-					<span class="fsm-state">data</span>
-					<span class="fsm-arrow">→</span>
-					<span class="fsm-state wb">done</span>
+			<div>
+				<div style="font-size: 0.7em;">
+					<h4 style="color: #2c3e50; font-size: 0.95em;">QSPI Master 结构与信号关系</h4>
+					<img src="/psram.png" alt="PSRAM QSPI Master 结构图" style="max-width: 100%; max-height: 390px;" />
+					<p class="small center">中期报告中的 QSPI Master 模块连接图（FSM / Clgen / Shift）</p>
 				</div>
-				<div class="highlight-box green" style="font-size: 0.95em; margin-top: 0.5em;">
-					<strong>意义</strong>：与 SPI Flash 共用底层架构思路，
-					但 QPI 模式下吞吐率提升至 4×；
-					为 SDRAM 缺失时提供扩展主存路径。
+				<div>
+					<div class="highlight-box green" style="font-size: 0.92em; margin-top: 0.5em;">
+						<strong>验证结果</strong>：在 Verilator 环境下对命令字和关键时序进行协议级验证，
+						确认 QSPI Master 与 PSRAM 芯片模型的交互正确。该 IP 核已在
+						<a href="https://github.com/KINGFIOX/spi-master" target="_blank">KINGFIOX/spi-master</a>
+						以 MIT 协议开源。
+					</div>
 				</div>
 			</div>
 		</div>
 	</section>
 
 	<!-- 3.3 SDRAM 重写 -->
+
 	<section>
-		<h2>SDRAM 控制器：Chisel 完整重写 + 字扩展</h2>
+		<h2>SDRAM 控制器：Chisel 完整重写 + 字位扩展</h2>
+		<div class="two-col" style="gap: 0.5em;">
+			<div>
+				<img src="/sdram.png" alt="SDRAM 字位扩展与事务桥结构图"
+					style="max-width: 100%; max-height: 380px; border-radius: 6px; border: 1px solid #ddd;" />
+			</div>
+			<div style="font-size: 0.7em; line-height: 1.7;">
+				<p>控制器支持<strong>位扩展</strong>与<strong>字扩展</strong>两种组织方式。位扩展模式下，两颗 SDRAM 芯片与同一个
+					SDRAM Core 组成一个 Bank，对同一行/列命令同步激活与访问，并在控制器侧将两路 16bit 数据拼接为 32bit 通路。</p>
+				<ul style="font-size: 0.95em;">
+					<li><strong>字扩展（Low-order Interleaving）</strong>：两个 Core 并联，按地址低位将请求映射到奇/偶 Core</li>
+					<li><strong>事务桥路由</strong>：中间模块将 AXI4 事务转为 Core 请求，并依据 <code>addr(2)</code> 路由到目标 Core</li>
+					<li><strong>响应回收</strong>：请求发出时把 Core 选择写入 pending FIFO，回收对应 ack/readData/error 返回 AXI4 侧
+					</li>
+				</ul>
+			</div>
+		</div>
+	</section>
+
+	<section>
+		<h2>SDRAM 控制器的重写思路</h2>
 		<div class="two-col" style="gap: 0.5em;">
 			<div>
 				<img src="/sdram-tb.png" alt="SDRAM AXI4 测试平台"
@@ -88,20 +105,17 @@
 			</div>
 			<div style="font-size: 0.7em; line-height: 1.7;">
 				<p>Fork <a href="https://github.com/ultraembedded/core_sdram_axi4"
-						target="_blank">ultraembedded/core_sdram_axi4</a>，
-					但使用 <strong>Chisel 完整重写</strong>，并新增<strong>位扩展</strong>与<strong>字扩展</strong>能力。</p>
-				<ul style="font-size: 0.95em;">
-					<li><strong>位扩展</strong>：两颗 SDRAM 同步访问，将 16bit × 2 拼接为 32bit 数据通路</li>
-					<li><strong>字扩展（低位交叉）</strong>：两个 SDRAM Core 按 <code>addr(2)</code> 路由到奇/偶 Core，并发访问</li>
-					<li><strong>事务桥</strong>：<code>SdramAxiPmem + Queues</code> 解耦请求/响应通路；<code>pendingQ</code> 保证响应回传顺序
-					</li>
-				</ul>
+						target="_blank">ultraembedded/core_sdram_axi4</a> 的 Verilog 方案后，
+					使用 <strong>Chisel 完整重写</strong>，并实现了 rocket-chip 风格的参数化</p>
 				<div class="highlight-box green" style="font-size: 0.92em; margin-top: 0.4em;">
-					<strong>重写收益</strong>：利用 Chisel <code>Queue</code> 充分发挥 AXI4 的
-					<strong>outstanding</strong> 与<strong>乱序</strong>响应特性，
-					流水化程度<strong>显著优于原 Verilog 版本</strong>。
+					重写后控制器在 AXI4 outstanding/乱序场景下具备更高流水化程度；
+					同时支持位扩展与低位交叉字扩展，提升大容量主存并发访问能力。
+					该 IP 核已在
+					<a href="https://github.com/KINGFIOX/core_sdram_axi4" target="_blank">KINGFIOX/core_sdram_axi4</a>
+					以 GPLv3 协议开源。
 				</div>
-				<p class="small">基于 Micron MT48LC16M16A2 行为级模型 + SystemC UVM 验证；可直接对接物理 SDRAM 颗粒。</p>
+				<p class="small">仿真侧参照 Micron MT48LC16M16A2 手册实现行为模型，覆盖 ACTIVATE / READ / WRITE /
+					PRECHARGE / AUTO REFRESH 时序；并通过 SystemC UVM 测试验证协议正确性。</p>
 			</div>
 		</div>
 	</section>
