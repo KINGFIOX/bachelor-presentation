@@ -1,0 +1,100 @@
+<!-- ==================== 九、仿真平台（论文第 9 章） 3 张 ==================== -->
+<section>
+
+	<!-- 3.1 仿真平台总体架构 -->
+	<section>
+		<h2>仿真验证平台 — 总体架构</h2>
+		<div style="font-size: 0.74em; line-height: 1.7; margin-bottom: 0.4em;">
+			<p><strong>工具链</strong>：Chisel <span style="color:#666;">—[CIRCT]→</span> Verilog
+				<span style="color:#666;">—[Verilator]→</span> C++ 类
+				<span style="color:#666;">—[link]→</span> 仿真 binary</p>
+			<p><strong>差分测试原理</strong>：处理器的双层状态机模型 —— ISA 状态机（Spike 实现，软件可见）
+				vs physical 状态机（DUT 内部）。每条指令执行后 PC/mem/GPR 状态迁移；DUT 与 Spike 在每条指令后状态完全一致 ⇒
+				<span class="green">CPU 在软件程序员视角下正确</span>。</p>
+		</div>
+		<div class="highlight-box" style="font-size: 0.78em;">
+			以 <strong>Verilator</strong>（DUT）+ <strong>Spike</strong>（Golden Model）+ <strong>Capstone</strong>（反汇编）为基础
+			构建逐指令差分测试平台；结合 <strong>NVBoard</strong> 完成外设可视化联调，
+			扩展为"指令级 + 系统级"双层验证体系。均以静态库形式链接到仿真 binary。
+		</div>
+		<div class="micro-arch" style="margin-top: 0.4em;">
+			<div class="ma-box">Verilator DUT</div>
+			<span class="ma-arrow">⇄</span>
+			<div class="ma-box exec">Rust DiffTest</div>
+			<span class="ma-arrow">⇄</span>
+			<div class="ma-box late">Spike Golden</div>
+			<span class="ma-arrow">+</span>
+			<div class="ma-box ctrl">Capstone 反汇编</div>
+			<span class="ma-arrow">+</span>
+			<div class="ma-box">NVBoard 外设</div>
+		</div>
+	</section>
+
+	<!-- 3.2 Rust 重写 + 模块划分 -->
+	<section>
+		<h2>仿真平台 — Rust 重写与模块划分</h2>
+		<div style="font-size: 0.74em; line-height: 1.7; margin-bottom: 0.4em;">
+			原 C99 实现约 <strong>5600 行</strong>，随 CPU 迭代维护成本上升。使用 <strong>Rust</strong> 重构，采用
+			面向对象 / 泛型 / 函数式 / RAII 范式，代码量减少至约 <strong>2500 行</strong>，
+			可读性与可维护性显著提升（通过 <code>cloc</code> 统计验证）。
+		</div>
+		<div class="two-col" style="font-size: 0.7em; gap: 0.6em;">
+			<div>
+				<h4 style="color: #2c3e50; font-size: 0.92em;">代码树（按功能划分六个模块）</h4>
+				<pre style="margin: 0.2em 0;"><code class="language-plaintext" data-trim>
+src/rust/
+├── common      # 命令行参数 + 快照机制
+├── ffi         # Verilator/Spike/NVBoard 桥接层
+├── libcpu      # 抽象 CPU 模型（Spike + Verilator 统一接口）
+├── libdpi      # DPI-C 回调（拦截 ICache、访存等）
+├── libsdb      # 简易调试器（Flex/Bison 表达式 + 断点）
+├── tracer      # ITrace / MTrace / DTrace / FTrace
+├── lib.rs
+└── main.rs
+				</code></pre>
+			</div>
+			<div>
+				<h4 style="color: #2c3e50; font-size: 0.92em;">关键设计</h4>
+				<ul style="font-size: 0.95em;">
+					<li><strong>libcpu</strong>：抽象 trait 统一 Spike 与 Verilator 操作接口，使 DiffTest 能以同一种方式驱动两者</li>
+					<li><strong>libdpi</strong>：在 RTL 仿真中拦截 ICache 访问与外设访存，记录硬件行为</li>
+					<li><strong>libsdb</strong>：内置 Flex/Bison 表达式求值引擎，支持寄存器/内存表达式断点与监视点</li>
+					<li><strong>tracer 四类</strong>：指令、内存、设备、函数追踪，全部支持环形缓冲</li>
+				</ul>
+				<div class="highlight-box green" style="font-size: 0.95em; margin-top: 0.3em;">
+					<strong>Rust 类型系统</strong>使桥接 C/C++ 库时 lifetime 与所有权可静态校验，
+					消除原 C 版本的指针 use-after-free 类 bug。
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- 3.3 LightSSS + DiffTest -->
+	<section>
+		<h2>仿真平台 — LightSSS 快照回放 &amp; DiffTest</h2>
+		<div class="two-col" style="gap: 0.6em;">
+			<div>
+				<img src="/lightsss.png" alt="LightSSS"
+					style="max-width: 100%; max-height: 360px; border-radius: 6px; border: 1px solid #ddd;" />
+				<p class="small center">环形缓冲区快照机制（基于 fork）</p>
+			</div>
+			<div style="font-size: 0.72em; line-height: 1.7;">
+				<h4 style="color: #2c3e50; font-size: 0.95em;">LightSSS 动机</h4>
+				<p>仿真过程中波形与日志会迅速消耗磁盘（GB 级/分钟）；
+					但出错通常只关注最后一小段时间。</p>
+				<h4 style="color: #2c3e50; font-size: 0.95em;">实现方式</h4>
+				<ul style="font-size: 0.95em;">
+					<li>主进程定期 <strong><code>fork()</code></strong> 创建快照子进程（COW，内存零拷贝）</li>
+					<li>仅保留环形缓冲中最近的 K 个快照</li>
+					<li>出错时唤醒最近的子进程，开启日志/波形记录，运行至出错点</li>
+					<li>最终输出包含最后 N 个周期完整波形的 VCD/FST</li>
+				</ul>
+				<div class="highlight-box green" style="font-size: 0.95em; margin-top: 0.3em;">
+					<strong>DiffTest + LightSSS 协同</strong>：DiffTest 检测到状态发散立刻触发回放，
+					定位"第一次发散指令"前的 K 拍完整波形 ⇒ <span class="green">从天级 debug 缩短到分钟级</span>。
+				</div>
+			</div>
+		</div>
+	</section>
+
+</section>

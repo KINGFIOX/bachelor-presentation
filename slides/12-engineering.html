@@ -1,0 +1,78 @@
+<!-- ==================== 十二、工程量统计  1 张 ==================== -->
+<section>
+	<h2>工程量统计与开源</h2>
+	<div class="center" style="margin-bottom: 0.4em;">
+		<span class="stat-number" style="font-size: 1.5em;">20,753</span>
+		<span class="stat-label" style="font-size: 0.9em;">&nbsp;行有效代码（不含空行与注释）</span>
+		<span
+			style="margin-left: 1em; padding: 0.25em 0.6em; background: #d4efdf; color: #27ae60; border-radius: 4px; font-size: 0.7em; font-weight: 700;">GPLv2
+			开源</span>
+	</div>
+	<table class="compact-table" style="font-size: 0.7em;">
+		<thead>
+			<tr>
+				<th>子项目</th>
+				<th>主要内容</th>
+				<th>文件数</th>
+				<th>代码行</th>
+				<th>主要语言</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td><strong>处理器核心与 SoC</strong></td>
+				<td>CPU 核心、总线互连、外设控制器（含乱序后端 + 前端 + Cache）</td>
+				<td>62</td>
+				<td><strong>6,292</strong></td>
+				<td>Scala (Chisel)</td>
+			</tr>
+			<tr>
+				<td><strong>仿真平台</strong></td>
+				<td>DiffTest、SDB 调试器、tracer 四件套</td>
+				<td>26</td>
+				<td>2,256</td>
+				<td>Rust</td>
+			</tr>
+			<tr>
+				<td><strong>仿真模型与桥接</strong></td>
+				<td>Verilator / Spike / NVBoard FFI</td>
+				<td>25</td>
+				<td>2,251</td>
+				<td>Verilog / C++</td>
+			</tr>
+			<tr>
+				<td><strong>SPI/QSPI 控制器</strong></td>
+				<td>PSRAM QSPI Master、行为级仿真模型</td>
+				<td>20</td>
+				<td>2,177</td>
+				<td>Scala / C++</td>
+			</tr>
+			<tr>
+				<td><strong>SDRAM 控制器</strong></td>
+				<td>AXI4 控制器、行为级仿真 + UVM 测试</td>
+				<td>31</td>
+				<td>2,509</td>
+				<td>Scala / C++</td>
+			</tr>
+			<tr>
+				<td><strong>裸机运行时</strong></td>
+				<td>AM 硬件抽象层、klib 运行时库</td>
+				<td>46</td>
+				<td>5,268</td>
+				<td>C / Assembly</td>
+			</tr>
+		</tbody>
+	</table>
+	<div class="two-col" style="font-size: 0.72em; gap: 0.5em; margin-top: 0.4em;">
+		<div class="highlight-box" style="font-size: 0.95em;">
+			<strong>开源仓库</strong>：
+			<a href="https://github.com/KINGFIOX/ysyx-workbench"
+				target="_blank">github.com/KINGFIOX/ysyx-workbench</a><br />
+			<a href="https://github.com/KINGFIOX/ysyxSoC" target="_blank">github.com/KINGFIOX/ysyxSoC</a>
+		</div>
+		<div class="highlight-box green" style="font-size: 0.95em;">
+			<strong>设计哲学</strong>：Chisel 元编程消除重复硬件代码 + Rust 类型系统消除仿真侧 use-after-free + 抽象类与泛型实现统一接口；
+			<span class="green">代码即文档</span>。
+		</div>
+	</div>
+</section>

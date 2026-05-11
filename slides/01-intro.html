@@ -1,0 +1,72 @@
+<!-- ==================== 封面 ==================== -->
+<section class="title-slide">
+	<img src="/hit-logo.png" alt="哈尔滨工业大学" style="height: 110px; margin-bottom: 0.6em;" />
+	<h1>RISC-V 指令集乱序处理器设计</h1>
+	<h2 style="color: #e67e22; font-size: 1.05em; margin-top: 0.4em;">本科毕业论文答辩</h2>
+	<div style="margin-top: 1.4em;">
+		<p>学院：深圳校区计算机科学与技术学院</p>
+		<p>专业：计算机科学与技术</p>
+		<p>指导老师：薛睿 高级实验师</p>
+		<p>学号：220111012 &nbsp;&nbsp; 姓名：王靳</p>
+		<p style="margin-top: 0.8em; color: #888;">2026 年 5 月</p>
+	</div>
+</section>
+
+<!-- ==================== 目录 ==================== -->
+<section>
+	<h2>报告提纲</h2>
+	<div class="toc-grid">
+		<div class="toc-item">1. 研究背景与课题目标</div>
+		<div class="toc-item">2. SoC 系统设计思路</div>
+		<div class="toc-item">3. 关键 IP 核设计与实现</div>
+		<div class="toc-item">4. 前后端解耦架构</div>
+		<div class="toc-item">5. 前端：IFU 流水化与动态分支预测</div>
+		<div class="toc-item">6. 后端：单发射乱序执行引擎</div>
+		<div class="toc-item">7. RISC-V 特权架构与虚拟内存</div>
+		<div class="toc-item">8. 缓存子系统</div>
+		<div class="toc-item">9. 仿真验证平台</div>
+		<div class="toc-item">10. 性能评估</div>
+		<div class="toc-item">11. 操作系统运行验证</div>
+		<div class="toc-item">12. 工程量统计与开源</div>
+		<div class="toc-item">13. 总结与展望</div>
+		<div class="toc-item"> <a href="https://github.com/KINGFIOX/ysyx-workbench" target="_blank">本项目</a> 以 GPLv2 协议开源
+		</div>
+	</div>
+</section>
+
+<!-- ==================== 研究背景与课题目标 ==================== -->
+<section>
+	<h2>研究背景与课题目标</h2>
+	<div class="two-col" style="font-size: 0.78em; align-items: stretch;">
+		<div>
+			<h3 style="color: #2980b9;">研究背景</h3>
+			<ul>
+				<li>开源指令集架构 <span class="blue">RISC-V</span> 的快速发展，
+					使基于开源生态开展高性能处理器研究成为体系结构领域的重要方向</li>
+				<li><span class="accent">乱序执行</span>通过动态调度与寄存器重命名提升指令级并行性，
+					是现代处理器获得高性能的关键机制</li>
+				<li>面向<strong>教学与工程实践</strong>需要可复现、可验证、可演化的
+					RISC-V 乱序处理器实现路径</li>
+			</ul>
+		</div>
+		<div>
+			<h3 style="color: #27ae60;">课题目标</h3>
+			<ul>
+				<li>使用 <strong>Chisel</strong> 设计支持 <span class="green">RV64IM</span> 的
+					单发射乱序处理器；统一物理寄存器 + 顺序提交实现精确异常</li>
+				<li>构建包含<strong>自主设计 IP 核</strong>（Flash / PSRAM / SDRAM）的完整
+					<strong>SoC</strong> 系统
+				</li>
+				<li>实现 <strong>M/S/U</strong> 三级特权架构与 <strong>Sv39</strong> 虚拟内存，
+					支持运行 <strong>xv6</strong> 教学操作系统</li>
+				<li>构建 Verilator + Rust 的仿真验证平台与定量性能评估框架</li>
+			</ul>
+		</div>
+	</div>
+	<div class="highlight-box green" style="font-size: 0.78em; margin-top: 0.4em;">
+		<strong>本文工作交付：</strong>支持 RV64IM 的单发射乱序 RISC-V 处理器 +
+		完整 SoC + 仿真验证平台；成功运行 <span class="green">xv6</span> / <span class="green">RT-Thread</span>；
+		IPC 0.43–0.56，Dhrystone 1.596 DMIPS/MHz，CoreMark 1.540 CoreMark/MHz；
+		全部代码以 <strong>GPLv2 开源</strong>。
+	</div>
+</section>

@@ -120,5 +120,8 @@
 		"@microsoft/api-extractor": {
 			"minimatch": "10.2.4"
 		}
+	},
+	"dependencies": {
+		"mermaid": "^11.14.0"
 	}
 }

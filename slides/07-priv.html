@@ -1,0 +1,113 @@
+<!-- ==================== 七、特权架构 + Sv39  3 张 ==================== -->
+<section>
+
+	<!-- 7.1 M/S/U + CSR + 委托 -->
+	<section>
+		<h2>特权架构 — M/S/U 三级模式与异常委托</h2>
+		<div class="two-col" style="gap: 0.5em;">
+			<div>
+<pre class="mermaid">
+stateDiagram-v2
+  direction LR
+  [*] --> M
+  U --> S: trap (delegated)
+  U --> M: trap (not delegated)
+  S --> M: trap (not delegated)
+  S --> S: trap (delegated)
+  M --> M: trap
+  S --> U: sret (SPP=U)
+  S --> S: sret (SPP=S)
+  M --> S: mret (MPP=S)
+  M --> U: mret (MPP=U)
+  M --> M: mret (MPP=M)
+</pre>
+			</div>
+			<div style="font-size: 0.65em;">
+				<table class="compact-table" style="font-size: 1em; margin: 0;">
+					<thead><tr><th>模式</th><th>寄存器</th><th>功能</th></tr></thead>
+					<tbody>
+						<tr><td>M</td><td>mstatus, mtvec, mepc, mcause, mtval</td><td>状态 / 陷入入口 / 异常现场</td></tr>
+						<tr><td>M</td><td>medeleg, mideleg</td><td>异常 / 中断委托掩码</td></tr>
+						<tr><td>M</td><td>mie, mip</td><td>中断使能与挂起</td></tr>
+						<tr><td>M</td><td>pmpcfg0, pmpaddr0</td><td>物理内存保护</td></tr>
+						<tr><td>M</td><td>mvendorid, marchid, mhartid, misa</td><td>只读标识 (RV64IMASU)</td></tr>
+						<tr><td>S</td><td>sstatus, stvec, sepc, scause, stval</td><td>S-mode 现场（mstatus 的掩码视图）</td></tr>
+						<tr><td>S</td><td>sie, sip, sscratch, satp</td><td>中断使能 / 暂存 / 页表基址</td></tr>
+						<tr><td>S</td><td>stimecmp</td><td>S-mode 定时器比较值</td></tr>
+					</tbody>
+				</table>
+				<div class="highlight-box" style="font-size: 0.92em; margin-top: 0.3em;">
+					<code>sstatus / sie / sip</code> 是 mstatus / mie / mip 的<strong>掩码视图</strong>，
+					避免 M/S 两级寄存器状态冗余与不一致。
+				</div>
+				<div class="highlight-box green" style="font-size: 0.92em;">
+					<strong>medeleg/mideleg → S-mode 直接处理 syscall / page fault</strong>，
+					无需 M-mode 中转，<span class="green">降低 trap 延迟</span>。
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- 7.2 中断机制 -->
+	<section>
+		<h2>特权架构 — 中断机制</h2>
+		<div class="four-grid" style="font-size: 0.7em; gap: 0.4em;">
+			<div class="grid-item" style="border-top-color: #2980b9;">
+				<h4>外部中断（PLIC）</h4>
+				<p>外设 → PLIC 仲裁 → <code>ext_irq</code> → CSRU → 映射到 <code>mip.SEIP</code> (bit 9)</p>
+			</div>
+			<div class="grid-item" style="border-top-color: #e67e22;">
+				<h4>定时器中断（CLINT）</h4>
+				<p>CLINT 维护全局 mtime；当 <code>mtime ≥ stimecmp</code> 时置位 <code>mip.STIP</code> (bit 5)</p>
+			</div>
+			<div class="grid-item" style="border-top-color: #8e44ad;">
+				<h4>软件中断</h4>
+				<p>软件写 <code>sip.SSIP</code> (bit 1) 触发，用于核间通知或软件触发场景</p>
+			</div>
+			<div class="grid-item" style="border-top-color: #c0392b;">
+				<h4>优先级</h4>
+				<p>M-mode 中断 > S-mode 中断；同模式内：<strong>MEI > MSI > MTI > SEI > SSI > STI</strong></p>
+			</div>
+		</div>
+		<div style="background: #f8f9fa; padding: 0.7em 1em; border-radius: 6px; margin-top: 0.5em; font-size: 0.78em;">
+			<p><strong>挂起判定公式</strong>：</p>
+			<p>&nbsp;&nbsp;<code>m_interrupts = mip & mie & ~mideleg</code> （未委托给 S）</p>
+			<p>&nbsp;&nbsp;<code>s_interrupts = mip & mie &  mideleg</code> （已委托给 S）</p>
+			<p style="font-size: 0.92em; margin-top: 0.3em;">是否可响应还取决于当前特权级与全局中断使能位
+				（<code>mstatus.MIE / SIE</code>，遵循 RISC-V 规范）。</p>
+		</div>
+		<div class="highlight-box green" style="font-size: 0.78em;">
+			<strong>中断注入时机</strong>：CommitStage 在 ROB 头部指令正常提交后（更新 ArchRAT、释放 old_prd）
+			再触发中断 trap；中断 epc 设为<strong>下一条 PC</strong>，使中断返回后从正确位置继续。
+		</div>
+	</section>
+
+	<!-- 7.3 Sv39 PTW + TLB -->
+	<section>
+		<h2>特权架构 — Sv39 虚拟内存 (TLB + PTW)</h2>
+		<div class="two-col" style="gap: 0.5em;">
+			<div>
+				<img src="/ptw-fsm.drawio.png" alt="PTW 9 态状态机"
+					style="max-width: 100%; max-height: 380px; border-radius: 6px; border: 1px solid #ddd;" />
+				<p class="small center">PTW 9 态状态机：依次访问 L2 / L1 / L0 PTE</p>
+			</div>
+			<div style="font-size: 0.7em; line-height: 1.65;">
+				<h4 style="color: #2c3e50; font-size: 0.95em;">虚拟地址布局</h4>
+				<p>Sv39：<strong>9+9+9 三级页号</strong> + 12 位页内偏移 → 44 位 PPN；
+					<code>satp.MODE = 8</code> 启用，<code>satp.PPN</code> 指向根页表物理基址</p>
+				<h4 style="color: #2c3e50; font-size: 0.95em;">TLB 设计</h4>
+				<ul style="font-size: 0.95em;">
+					<li><strong>16 项全相联</strong>，VPN (27 位) 作为 tag 并行比较</li>
+					<li>替换：<strong>位矩阵 LRU</strong>，仅需 N(N-1)/2 个触发器（上三角）</li>
+					<li><code>sfence.vma</code> 一次性失效全部表项</li>
+				</ul>
+				<h4 style="color: #2c3e50; font-size: 0.95em;">IFU / LSU 各一套独立 MMU</h4>
+				<ul style="font-size: 0.95em;">
+					<li>结构完全相同，仅权限位不同：IFU 检 <code>PTE.X</code>，LSU 检 <code>PTE.R/PTE.W</code></li>
+					<li>"乐观路径先查 TLB，悲观路径回退到 PTW" → <span class="green">TLB 命中无额外延迟</span></li>
+				</ul>
+			</div>
+		</div>
+	</section>
+
+</section>

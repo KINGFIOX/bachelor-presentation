@@ -1,0 +1,109 @@
+<!-- ==================== 三、关键 IP 核设计与实现（论文第 3 章） ==================== -->
+<section>
+
+	<!-- 3.1 Flash + XIP -->
+	<section>
+		<h2>Flash 控制器与 XIP 机制</h2>
+		<div class="two-col">
+			<div>
+				<img src="/xip-fsm.drawio.png" alt="XIP FSM"
+					style="max-width: 100%; max-height: 360px; border-radius: 6px; border: 1px solid #ddd;" />
+				<p class="small center">APB XIP 控制器状态转移图（8 态）</p>
+			</div>
+			<div style="font-size: 0.78em; line-height: 1.7;">
+				<p><strong>Flash 双访问模式</strong>：</p>
+				<ul style="font-size: 0.95em;">
+					<li><strong>命令方式</strong>：经 APB → SPI Arbiter → SPI 寄存器，用于 Bootloader 阶段 Flash 编程</li>
+					<li><strong>XIP 方式</strong>：CPU 对 Flash 地址窗口的 MMIO 读 → 自动转换为 SPI 命令字序列 → 直接取指</li>
+				</ul>
+				<div class="highlight-box" style="font-size: 0.85em;">
+					<strong>引入 XIP 的动机</strong>：避免"鸡生蛋"死锁——若程序在 Flash 中而访问 Flash 又依赖软件驱动，
+					则驱动本身需先从 Flash 取出，系统无法启动。XIP 提供硬件读通路，<span class="green">无需软件驱动即可启动</span>。
+				</div>
+				<p class="small">基于 Winbond W25Q128JVSIQ 手册时序，实现行为级仿真模型并经类 UVM 验证，<span
+						class="green">协议正确性可对接物理芯片</span>。</p>
+			</div>
+		</div>
+	</section>
+
+	<!-- 3.2 PSRAM QSPI Master -->
+	<section>
+		<h2>PSRAM QSPI Master 控制器</h2>
+		<div class="two-col-3-2">
+			<div>
+				<div style="font-size: 0.7em; line-height: 1.7;">
+					<p>使用 <strong>Chisel</strong> 重新实现完整 QSPI Master，APB 接口，支持<strong>标准 QSPI ↔ QPI</strong>（四线半双工）模式切换。
+					</p>
+					<p>控制器内部由三个子模块构成：</p>
+				</div>
+				<div class="four-grid" style="font-size: 0.7em; margin-top: 0.4em;">
+					<div class="grid-item" style="border-top-color: #2980b9;">
+						<h4>FSM</h4>
+						<p>协调 APB 总线事务与 SPI 传输流程</p>
+					</div>
+					<div class="grid-item" style="border-top-color: #e67e22;">
+						<h4>Clgen</h4>
+						<p>分频生成 SPI 时钟，提供采样/驱动边沿</p>
+					</div>
+					<div class="grid-item" style="border-top-color: #27ae60;">
+						<h4>Shift</h4>
+						<p>串并转换；tipDone/last 通知 FSM 完成</p>
+					</div>
+					<div class="grid-item" style="border-top-color: #8e44ad;">
+						<h4>仿真模型</h4>
+						<p>ISSI IS66WVS4M8 行为级模型 + 协议级 UVM</p>
+					</div>
+				</div>
+			</div>
+			<div style="font-size: 0.7em;">
+				<h4 style="color: #2c3e50; font-size: 0.95em;">控制流程（go → tipDone）</h4>
+				<div class="fsm-container" style="font-size: 0.75em;">
+					<span class="fsm-state idle">idle</span>
+					<span class="fsm-arrow">→</span>
+					<span class="fsm-state">cmd</span>
+					<span class="fsm-arrow">→</span>
+					<span class="fsm-state">addr</span>
+					<span class="fsm-arrow">→</span>
+					<span class="fsm-state">data</span>
+					<span class="fsm-arrow">→</span>
+					<span class="fsm-state wb">done</span>
+				</div>
+				<div class="highlight-box green" style="font-size: 0.95em; margin-top: 0.5em;">
+					<strong>意义</strong>：与 SPI Flash 共用底层架构思路，
+					但 QPI 模式下吞吐率提升至 4×；
+					为 SDRAM 缺失时提供扩展主存路径。
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- 3.3 SDRAM 重写 -->
+	<section>
+		<h2>SDRAM 控制器：Chisel 完整重写 + 字扩展</h2>
+		<div class="two-col" style="gap: 0.5em;">
+			<div>
+				<img src="/sdram-tb.png" alt="SDRAM AXI4 测试平台"
+					style="max-width: 100%; max-height: 380px; border-radius: 6px; border: 1px solid #ddd;" />
+				<p class="small center">SystemC UVM 测试平台（基于 ultraembedded 重构）</p>
+			</div>
+			<div style="font-size: 0.7em; line-height: 1.7;">
+				<p>Fork <a href="https://github.com/ultraembedded/core_sdram_axi4"
+						target="_blank">ultraembedded/core_sdram_axi4</a>，
+					但使用 <strong>Chisel 完整重写</strong>，并新增<strong>位扩展</strong>与<strong>字扩展</strong>能力。</p>
+				<ul style="font-size: 0.95em;">
+					<li><strong>位扩展</strong>：两颗 SDRAM 同步访问，将 16bit × 2 拼接为 32bit 数据通路</li>
+					<li><strong>字扩展（低位交叉）</strong>：两个 SDRAM Core 按 <code>addr(2)</code> 路由到奇/偶 Core，并发访问</li>
+					<li><strong>事务桥</strong>：<code>SdramAxiPmem + Queues</code> 解耦请求/响应通路；<code>pendingQ</code> 保证响应回传顺序
+					</li>
+				</ul>
+				<div class="highlight-box green" style="font-size: 0.92em; margin-top: 0.4em;">
+					<strong>重写收益</strong>：利用 Chisel <code>Queue</code> 充分发挥 AXI4 的
+					<strong>outstanding</strong> 与<strong>乱序</strong>响应特性，
+					流水化程度<strong>显著优于原 Verilog 版本</strong>。
+				</div>
+				<p class="small">基于 Micron MT48LC16M16A2 行为级模型 + SystemC UVM 验证；可直接对接物理 SDRAM 颗粒。</p>
+			</div>
+		</div>
+	</section>
+
+</section>

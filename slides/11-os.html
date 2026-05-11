@@ -1,0 +1,87 @@
+<!-- ==================== 十一、操作系统运行验证  2 张 ==================== -->
+<section>
+
+	<!-- 10.1 xv6 运行 -->
+	<section>
+		<h2>操作系统运行 — xv6 教学操作系统</h2>
+		<div class="two-col" style="gap: 0.5em;">
+			<div>
+				<h4 style="color: #2c3e50; font-size: 0.85em;">xv6 启动后的典型输出</h4>
+				<pre style="margin: 0.2em 0;"><code class="language-plaintext" data-trim>
+xv6 kernel is booting
+
+hart 0 starting
+init: starting sh
+$ ls
+.              1 1 1024
+..             1 1 1024
+README         2 2 2226
+cat            2 3 33304
+echo           2 4 32264
+forktest       2 5 16312
+grep           2 6 36560
+init           2 7 33256
+kill           2 8 32312
+ln             2 9 32208
+ls             2 10 35888
+mkdir          2 11 32368
+rm             2 12 32352
+sh             2 13 51296
+stressfs       2 14 33288
+usertests      2 15 192712
+grind          2 16 47000
+wc             2 17 34376
+zombie         2 18 31816
+console        3 19 0
+
+$ cat README
+xv6 is a re-implementation of Dennis Ritchie's
+and Ken Thompson's Unix Version 6 (v6).
+				</code></pre>
+			</div>
+			<div style="font-size: 0.7em; line-height: 1.7;">
+				<h4 style="color: #2c3e50; font-size: 0.95em;">xv6 验证了哪些硬件特性</h4>
+				<ul style="font-size: 0.95em;">
+					<li><strong>M/S/U 三级特权切换</strong>：mret/sret 进入 S/U-mode，syscall 经 ecall 进入 S-mode</li>
+					<li><strong>异常委托</strong>：medeleg/mideleg 让 page fault 与 syscall 直接由 S-mode 处理</li>
+					<li><strong>Sv39 虚拟内存</strong>：内核与用户空间隔离 / fork 时 copy-on-write 触发 page fault</li>
+					<li><strong>定时器中断</strong>：CLINT + stimecmp 驱动调度器轮转</li>
+					<li><strong>外部中断</strong>：PLIC + UART 16550 与 virtio-disk</li>
+					<li><strong>fence.i / fence + DMA 一致性</strong>：virtio-disk 块传输</li>
+				</ul>
+				<div class="highlight-box green" style="font-size: 0.95em;">
+					<strong>已成功启动并稳定运行</strong>：进入 init → 拉起 sh → ls / cat / forktest / usertests 全程通过。
+					<span class="green">乱序执行 + 缓存 + 异常 + 虚拟内存全链路验证</span>。
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- 10.2 RT-Thread / NVBoard 演示 -->
+	<section>
+		<h2>操作系统运行 — RT-Thread + NVBoard 可视化</h2>
+		<div class="two-col" style="gap: 0.6em; align-items: start;">
+			<div class="center">
+				<img src="/nvboard.png" alt="NVBoard 运行效果"
+					style="max-height: 360px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);" />
+				<p class="small">NVBoard 虚拟开发板 + RT-Thread 的"贪吃蛇"</p>
+			</div>
+			<div style="font-size: 0.78em; line-height: 2.0;">
+				<div><strong>左上</strong>：七段数码管，显示学号后 8 位</div>
+				<div><strong>右上</strong>：UART 串口终端，回显输入</div>
+				<div><strong>左下</strong>：VGA 虚拟显示器，<span class="green">RT-Thread 跑"贪吃蛇"</span></div>
+				<div><strong>右下</strong>：PS2 键盘接收键盘输入</div>
+				<div class="highlight-box" style="font-size: 0.92em; margin-top: 0.4em;">
+					RT-Thread 验证了多任务调度、上下文切换、定时器中断驱动的任务轮转，
+					以及对自研 GPIO/PS2/VGA/UART 控制器的<strong>裸金属外设访问</strong>。
+				</div>
+				<div class="highlight-box green" style="font-size: 0.92em;">
+					<strong>双 OS 验证体系</strong>：xv6 验证特权架构 + Sv39 + 文件系统等"系统软件"链路；
+					RT-Thread 验证<strong>实时性 + 外设交互</strong>，
+					二者互补覆盖处理器全部已实现特性。
+				</div>
+			</div>
+		</div>
+	</section>
+
+</section>

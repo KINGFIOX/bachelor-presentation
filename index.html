@@ -1,43 +1,113 @@
 <!DOCTYPE html>
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<meta
-			name="viewport"
-			content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-		/>
+<html lang="zh-CN">
 
-		<title>reveal.js</title>
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 
-		<link rel="stylesheet" href="dist/reset.css" />
-		<link rel="stylesheet" href="dist/reveal.css" />
-		<link rel="stylesheet" href="dist/theme/black.css" />
+	<title>RISC-V 指令集乱序处理器设计 · 毕业答辩</title>
 
-		<!-- Theme used for syntax highlighted code -->
-		<link rel="stylesheet" href="dist/plugin/highlight/monokai.css" />
-	</head>
-	<body>
-		<div class="reveal">
-			<div class="slides">
-				<section>Slide 1</section>
-				<section>Slide 2</section>
-			</div>
+	<link rel="icon" type="image/png" href="/hit-logo.png" />
+	<link rel="stylesheet" href="dist/reset.css" />
+	<link rel="stylesheet" href="dist/reveal.css" />
+	<link rel="stylesheet" href="dist/theme/white.css" />
+	<link rel="stylesheet" href="dist/plugin/highlight/monokai.css" />
+	<link rel="stylesheet" href="css/presentation.css" />
+</head>
+
+<body>
+	<div class="reveal">
+		<div class="slides">
+			<section>
+				<h2>正在加载…</h2>
+			</section>
 		</div>
+	</div>
 
-		<script src="dist/reveal.js"></script>
-		<script src="dist/plugin/notes.js"></script>
-		<script src="dist/plugin/markdown.js"></script>
-		<script src="dist/plugin/highlight.js"></script>
-		<script>
-			// More info about initialization & config:
-			// - https://revealjs.com/initialization/
-			// - https://revealjs.com/config/
-			Reveal.initialize({
-				hash: true,
+	<script type="module">
+		// 按顺序异步加载各章节的 HTML 片段，拼装到 .slides 容器中，再初始化 reveal.js
+		import Reveal from './dist/reveal.mjs';
+		import RevealHighlight from './dist/plugin/highlight.mjs';
+		import RevealNotes from './dist/plugin/notes.mjs';
+		import mermaid from 'mermaid';
 
-				// Learn about plugins: https://revealjs.com/plugins/
-				plugins: [RevealMarkdown, RevealHighlight, RevealNotes],
-			});
-		</script>
-	</body>
+		const SLIDE_FILES = [
+			'slides/01-intro.html',
+			'slides/02-soc.html',
+			'slides/03-ipcore.html',
+			'slides/04-decouple.html',
+			'slides/05-frontend.html',
+			'slides/06-backend.html',
+			'slides/07-priv.html',
+			'slides/08-cache.html',
+			'slides/09-simulation.html',
+			'slides/10-perf.html',
+			'slides/11-os.html',
+			'slides/12-engineering.html',
+			'slides/13-summary.html',
+			'slides/14-thanks.html',
+		];
+
+		async function loadSlides() {
+			const container = document.querySelector('.reveal .slides');
+			const fragments = await Promise.all(
+				SLIDE_FILES.map(async (path) => {
+					const resp = await fetch(path);
+					if (!resp.ok) throw new Error(`Failed to fetch ${path}: ${resp.status}`);
+					return resp.text();
+				}),
+			);
+			container.innerHTML = fragments.join('\n');
+		}
+
+		mermaid.initialize({
+			startOnLoad: false,
+			theme: 'default',
+			securityLevel: 'loose',
+			flowchart: { htmlLabels: true, curve: 'basis' },
+			themeVariables: {
+				fontSize: '14px',
+				primaryColor: '#ebf5fb',
+				primaryTextColor: '#2c3e50',
+				primaryBorderColor: '#2980b9',
+				lineColor: '#555',
+			},
+		});
+
+		async function renderMermaid(scope = document) {
+			const blocks = scope.querySelectorAll('pre.mermaid:not([data-rendered])');
+			for (const block of blocks) {
+				const src = block.textContent.trim();
+				const id = `mmd-${Math.random().toString(36).slice(2, 10)}`;
+				try {
+					const { svg } = await mermaid.render(id, src);
+					block.innerHTML = svg;
+					block.setAttribute('data-rendered', 'true');
+				} catch (err) {
+					console.error('Mermaid render error', err, src);
+					block.innerHTML = `<pre style="color:#c0392b;font-size:0.55em;">${err.message}</pre>`;
+				}
+			}
+		}
+
+		await loadSlides();
+		await renderMermaid();
+
+		const deck = new Reveal({
+			hash: true,
+			slideNumber: 'c/t',
+			width: 1280,
+			height: 760,
+			margin: 0.06,
+			transition: 'slide',
+			plugins: [RevealHighlight, RevealNotes],
+		});
+
+		await deck.initialize();
+		// 部分图片或 mermaid 在加载后才计算好尺寸，强制刷新一次布局
+		deck.on('slidechanged', () => renderMermaid());
+		deck.layout();
+	</script>
+</body>
+
 </html>

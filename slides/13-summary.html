@@ -1,0 +1,105 @@
+<!-- ==================== 十三、总结与展望  3 张 ==================== -->
+<section>
+
+	<!-- 12.1 主要工作与创新点 -->
+	<section>
+		<h2>主要工作与创新点</h2>
+		<div class="four-grid" style="grid-template-columns: 1fr 1fr; font-size: 0.7em; gap: 0.4em;">
+			<div class="grid-item" style="border-top-color: #2980b9;">
+				<h4>① 完整 SoC 与关键 IP 核全自研</h4>
+				<p>AXI4/APB 分层互连；Flash (XIP)、PSRAM (QSPI)、SDRAM 控制器全部 Chisel 实现/重写，配行为级仿真模型并经协议级验证</p>
+			</div>
+			<div class="grid-item" style="border-top-color: #c0392b;">
+				<h4>② 单发射乱序处理器核心</h4>
+				<p>RV64IM；前后端解耦 + 统一物理寄存器重命名 + ROB 顺序提交 ⇒ 精确异常；GShare + IJTC + RAS 组合分支预测</p>
+			</div>
+			<div class="grid-item" style="border-top-color: #27ae60;">
+				<h4>③ 完整 RISC-V 特权架构</h4>
+				<p>M/S/U 三级特权 + 异常委托 + Sv39 三级页表（TLB + PTW）+ PLIC + CLINT，为 OS 提供完整体系结构支撑</p>
+			</div>
+			<div class="grid-item" style="border-top-color: #e67e22;">
+				<h4>④ Verilator + Rust 仿真验证平台</h4>
+				<p>Rust 重写从 5600→2500 行；DiffTest 逐指令比对 + LightSSS fork 快照 + 四类 tracer + 缓存级差分；5+ 类 bug 由此定位</p>
+			</div>
+			<div class="grid-item" style="border-top-color: #8e44ad;">
+				<h4>⑤ xv6 + RT-Thread 双 OS 验证</h4>
+				<p>xv6 启动稳定运行用户态程序；RT-Thread 配合 NVBoard 完成多任务调度与外设可视化演示</p>
+			</div>
+			<div class="grid-item" style="border-top-color: #2c3e50;">
+				<h4>⑥ 量化性能评估</h4>
+				<p>RTL 寄存器 + DPI-C 事件混合性能计数器；MicroBench / Dhrystone / CoreMark 三组基准；
+					Dhrystone 1.596 DMIPS/MHz <strong>跨越 Cortex-M3 档位</strong></p>
+			</div>
+		</div>
+	</section>
+
+	<!-- 12.2 不足与未来工作 -->
+	<section>
+		<h2>不足与未来工作</h2>
+		<div class="timeline" style="font-size: 0.78em;">
+			<div class="timeline-item">
+				<div class="timeline-date">微架构<br/>升级</div>
+				<div class="timeline-content">
+					<strong>单发射 → 双发射 / 多发射</strong>。当前每周期至多提交一条指令；
+					双发射后 BTB 与多端口 BP 将成为必要补充
+				</div>
+			</div>
+			<div class="timeline-item">
+				<div class="timeline-date">前端<br/>时序</div>
+				<div class="timeline-content">
+					<strong>BPU 拆出独立流水段</strong>。当前 Predict 挂在 F3 组合路径，追求更高频率时会成为关键路径
+				</div>
+			</div>
+			<div class="timeline-item">
+				<div class="timeline-date">缓存<br/>层次</div>
+				<div class="timeline-content">
+					<strong>引入 L2 Cache</strong> 降低主存访问延迟；引入跨主设备 MESI 嗅探或 AXI4-ACE/CHI 一致性互连，替代 fence 软件方案
+				</div>
+			</div>
+			<div class="timeline-item">
+				<div class="timeline-date">执行<br/>单元</div>
+				<div class="timeline-content">
+					<strong>流水化 MUL/DIV</strong>。当前迭代式实现，吞吐受限；流水化后可显著提升 ILP
+				</div>
+			</div>
+			<div class="timeline-item">
+				<div class="timeline-date">物理<br/>实现</div>
+				<div class="timeline-content">
+					<strong>FPGA 综合 + 上板验证</strong>。评估实际时钟频率与资源占用；进一步推进 OpenSBI + U-Boot + Linux 引导
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- 12.3 结论 -->
+	<section>
+		<h2>结论</h2>
+		<div style="font-size: 0.85em; line-height: 1.8; margin-top: 0.8em;">
+			本文围绕"RISC-V 指令集乱序处理器设计"这一课题，完成了从核心微架构设计到系统级集成与验证的全流程工作：
+			<strong>SoC + 关键 IP 核 + 单发射乱序处理器 + 完整特权架构 + 缓存子系统 + 仿真验证平台 + 双 OS 运行 + 量化性能评估</strong>。
+		</div>
+		<div class="perf-grid" style="margin-top: 0.8em;">
+			<div class="perf-card green">
+				<div class="perf-num">RV64IM</div>
+				<div class="perf-label">指令集 + M/S/U + Sv39</div>
+			</div>
+			<div class="perf-card">
+				<div class="perf-num">乱序</div>
+				<div class="perf-label">统一 PRF + ROB 精确异常</div>
+			</div>
+			<div class="perf-card orange">
+				<div class="perf-num">xv6</div>
+				<div class="perf-label">已成功启动并稳定运行</div>
+			</div>
+			<div class="perf-card purple">
+				<div class="perf-num">20K+</div>
+				<div class="perf-label">行有效代码 / GPLv2 开源</div>
+			</div>
+		</div>
+		<div class="highlight-box green" style="margin-top: 0.8em; font-size: 0.85em; text-align: center;">
+			<strong>实现了一款支持 RV64IM、具备完整乱序执行能力、可运行 xv6 操作系统的 RISC-V 处理器；</strong><br/>
+			工作为 RISC-V 乱序处理器的<span class="green">教学与工程实践</span>提供了可复现的实现路径与系统级参考。
+		</div>
+	</section>
+
+</section>

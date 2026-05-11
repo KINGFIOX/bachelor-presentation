@@ -1,0 +1,45 @@
+<!-- ==================== 四、前后端解耦架构（1 张） ==================== -->
+<section>
+	<h2>处理器核心 — 前后端解耦微架构</h2>
+	<div class="two-col-3-2" style="gap: 0.6em;">
+		<div>
+			<pre class="mermaid">
+flowchart LR
+  subgraph FE["FrontEnd"]
+    IFU["IFU<br/>4-stage pipe<br/>+ iTLB + PTW"]
+    Predict["Predict<br/>CU + IGU<br/>BHT + IJTC + RAS"]
+    IFU -- "pc / inst" --> Predict
+    Predict -- "predict_dnpc" --> IFU
+  end
+  IQ["Instruction Queue<br/>(depth=4)"]
+  subgraph BE["BackEnd"]
+    DEC["Decode → Rename → Dispatch<br/>→ Issue → Exec → WB → (Late) → Commit"]
+  end
+  IFU -- "out (inst/pc/ghr)" --> IQ
+  IQ -- "in" --> BE
+  BE -. "redirect" .-> Predict
+  BE -. "flush / dnpc" .-> IFU
+  BE -. "flush" .-> IQ
+</pre>
+		</div>
+		<div style="font-size: 0.72em; line-height: 1.65;">
+			<h4 style="color: #2c3e50; font-size: 0.95em;">解耦的两个层次</h4>
+			<ul style="font-size: 0.95em;">
+				<li><strong>时序解耦</strong>：连接方式可配置，从点对点直连（0 周期）到深度可调队列；
+					前后端按各自节奏运行，<span class="green">缓冲带宽浪费</span></li>
+				<li><strong>实现解耦</strong>：标准握手协议通信，前端可换为<strong>软件 Spike 前端</strong>对后端进行<strong>满载压力测试</strong></li>
+			</ul>
+			<div class="highlight-box green" style="font-size: 0.95em; margin-top: 0.3em;">
+				实测中：Spike 软件前端跑 MicroBench
+				<strong>分支预测命中率 99.64%</strong>，几乎每周期供应一条指令；
+				从而暴露了原硬件前端因反压不足而隐藏的<strong>数据转发时机 bug</strong>。
+			</div>
+			<h4 style="color: #2c3e50; font-size: 0.95em; margin-top: 0.4em;">PipelineConnect 泛型流水段</h4>
+			<p style="font-size: 0.95em;">基于 <code>T &lt;: Data</code> 类型参数实现的握手包装，
+				在所有流水段统一 <code>flush + ready/valid</code> 语义；
+				<span class="blue">同一抽象</span>从前端 IFU 用到后端 Issue/Exec/Commit。
+			</p>
+		</div>
+	</div>
+	<div class="citation">详见论文 第 4 章 前后端解耦架构</div>
+</section>

@@ -1,0 +1,218 @@
+<!-- ==================== 六、后端乱序执行 5 张 ==================== -->
+<section>
+
+	<!-- 6.1 后端总览 -->
+	<section>
+		<h2>后端 — 乱序执行引擎总览</h2>
+		<div class="center">
+			<img src="/backend-arch.drawio.png" alt="后端乱序架构"
+				style="max-width: 85%; max-height: 420px; border-radius: 6px; border: 1px solid #ddd;" />
+		</div>
+		<div class="highlight-box" style="font-size: 0.62em; margin-top: 0.4em;">
+			<strong>RV64IM</strong>，五条独立执行路径：
+			<span class="pipeline-box">ALU</span>
+			<span class="pipeline-box">MDU</span>
+			<span class="pipeline-box">BRU</span>
+			<span class="pipeline-box orange-bg">LSU (late)</span>
+			<span class="pipeline-box orange-bg">CSRU (late)</span>。
+			流水线：<strong>译码 → 重命名 → 分派 → 发射 → 执行 → 写回 → (晚执行) → 提交</strong>，
+			每级用 <code>PipelineConnect</code> 时序解耦。
+		</div>
+	</section>
+
+	<!-- 6.2 寄存器重命名 -->
+	<section>
+		<h2>后端 — 寄存器重命名（统一物理寄存器）</h2>
+		<div class="two-col" style="gap: 0.5em;">
+			<div style="font-size: 0.7em;">
+				<h4 style="color: #2c3e50; font-size: 0.95em;">四张表协同工作</h4>
+				<div class="micro-arch" style="font-size: 0.85em;">
+					<div class="ma-box">FreeList</div>
+					<span class="ma-arrow">→</span>
+					<div class="ma-box ctrl">FutureRAT</div>
+					<span class="ma-arrow">→</span>
+					<div class="ma-box exec">PRF<br />(9R/5W)</div>
+					<span class="ma-arrow">→</span>
+					<div class="ma-box late">BusyTable</div>
+				</div>
+				<ul style="font-size: 0.92em;">
+					<li><strong>PRF</strong>：9 读端口 (ALU×2 / BRU×2 / MDU×2 / LSU×2 / CSRU)，5 写端口</li>
+					<li><strong>FutureRAT</strong>：推测态映射；3 读端口（rs1/rs2/rd），1 写端口</li>
+					<li><strong>ArchRAT</strong>：已提交确定映射；提交时同步更新</li>
+					<li><strong>FreeList</strong>：分配/回收物理寄存器；
+						<span class="green">flush 时仅 1 周期由 ArchRAT 重建</span>
+					</li>
+					<li><strong>BusyTable</strong>：6 读 + 5 wakeup（即时/Exec/Late 三类时机）</li>
+				</ul>
+			</div>
+			<div style="font-size: 0.7em;">
+				<h4 style="color: #2c3e50; font-size: 0.95em;">old_prd 释放示例</h4>
+				<table class="compact-table" style="font-size: 1em; margin: 0.2em 0;">
+					<thead>
+						<tr>
+							<th>指令</th>
+							<th>逻辑 rd</th>
+							<th>分配 prd</th>
+							<th>old_prd</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td>ADD x1, x2, x3</td>
+							<td>x1</td>
+							<td>p10</td>
+							<td>p1</td>
+						</tr>
+						<tr>
+							<td>SUB x1, x4, x5</td>
+							<td>x1</td>
+							<td>p11</td>
+							<td>p10</td>
+						</tr>
+					</tbody>
+				</table>
+				<p style="font-size: 0.92em;">ADD 提交 ⇒ p1 (旧 x1) 已无引用 ⇒ 归还 FreeList；
+					SUB 提交 ⇒ p10 归还。
+					<span class="blue">每个活跃值独占一个物理寄存器</span>，消除 WAW/WAR 假依赖。
+				</p>
+				<div class="highlight-box green" style="font-size: 0.92em;">
+					<strong>flush 恢复</strong>：FutureRAT 从 ArchRAT 快照、FreeList 用 ArchRAT 反推，
+					<span class="green">仅 1 周期</span>，无需遍历 ROB。
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- 6.3 发射队列 + Scala 抽象 -->
+	<section>
+		<h2>后端 — 发射队列与乱序发射（泛型抽象）</h2>
+		<div class="two-col" style="gap: 0.5em;">
+			<div>
+				<h4 style="color: #2c3e50; font-size: 0.85em;">三个独立 IQ + 5 个 wakeup 源</h4>
+				<div class="micro-arch" style="font-size: 0.85em; flex-wrap: wrap;">
+					<div class="ma-box">ALU IQ</div>
+					<div class="ma-box">BRU IQ</div>
+					<div class="ma-box">MDU IQ</div>
+				</div>
+				<ul style="font-size: 0.7em; line-height: 1.7;">
+					<li><strong>wakeup 源 1</strong>：分派级即时（LUI/AUIPC/JAL/JALR 结果可在分派算出）</li>
+					<li><strong>wakeup 源 2-3</strong>：ALU / MDU 写回</li>
+					<li><strong>wakeup 源 4-5</strong>：LSU / CSRU 延迟执行写回</li>
+				</ul>
+				<div class="highlight-box" style="font-size: 0.78em;">
+					<strong>选择策略</strong>：源就绪后，优先级编码器选最早入队，保证<strong>公平性</strong>。
+					"执行 → 唤醒 → 发射"形成连锁反应。
+				</div>
+			</div>
+			<div>
+				<h4 style="color: #2c3e50; font-size: 0.85em;">Chisel 泛型抽象类</h4>
+				<pre style="margin: 0.2em 0;"><code class="language-scala" data-trim>
+abstract class IssueQueue[T &lt;: Data](
+    gen: T,
+    val entries: Int,
+) extends NPCModule {
+  val io = IO(new Bundle {
+    val in     = Flipped(Decoupled(gen))
+    val out    = Decoupled(gen)
+    val wakeup = Vec(NRWakeupPorts, Flipped(Valid(...)))
+    val flush  = Input(Bool())
+  })
+  // ...
+}
+				</code></pre>
+				<p style="font-size: 0.7em; line-height: 1.6;">
+					类型参数 <code>gen: T</code> 携带载荷差异（ALU 含立即数；BRU/MDU 不含）；
+					三个 IQ 复用同一份核心实现。
+					<span class="green">简单实现 = 固定槽位扫描；复杂实现 = 压缩表项（compacting）</span>，对外接口完全一致。
+				</p>
+			</div>
+		</div>
+	</section>
+
+	<!-- 6.4 LSU 状态机 + late execution -->
+	<section>
+		<h2>后端 — 延迟执行：LSU + CSRU</h2>
+		<div class="two-col-3-2" style="gap: 0.5em;">
+			<div>
+				<pre class="mermaid">
+stateDiagram-v2
+  direction LR
+  [*] --> idle
+  idle --> tlb_check: Sv39 on
+  idle --> lsu_req: Sv39 off
+  tlb_check --> lsu_req: TLB hit<br/>&amp; access ok
+  tlb_check --> idle: page fault
+  tlb_check --> ptw_req: TLB miss
+  ptw_req --> ptw_wait: PTW fire
+  ptw_wait --> idle: PTW fault
+  ptw_wait --> tlb_check: PTW done<br/>(refill dTLB)
+  lsu_req --> lsu_wait: ack &amp;<br/>!done
+  lsu_req --> idle: ack &amp; done
+  lsu_wait --> idle: done
+</pre>
+			</div>
+			<div style="font-size: 0.7em; line-height: 1.65;">
+				<h4 style="color: #2c3e50; font-size: 0.95em;">为什么 Store / CSR 走 late execution</h4>
+				<ul style="font-size: 0.95em;">
+					<li><strong>Store</strong>：避免推测路径上对内存状态的<span class="accent">不可撤销副作用</span>，简化存储一致性维护</li>
+					<li><strong>CSR</strong>：保证特权级切换、中断使能等副作用<span class="accent">严格按程序顺序</span>生效</li>
+					<li>分派时仅写入 ROB，不入发射队列；ROB 推到提交头部时才交付 LSU/CSRU 执行</li>
+				</ul>
+				<h4 style="color: #2c3e50; font-size: 0.95em; margin-top: 0.3em;">LSU 内部细节</h4>
+				<ul style="font-size: 0.95em;">
+					<li>独立 dTLB + PTW，复用 IFU 的 PTW 实现（仅权限位检查不同）</li>
+					<li>Load 检 PTE.R，Store 检 PTE.W；mcause = 13 / 15</li>
+					<li>MMIO 与 DCache 路径在 <code>lsu_req</code> 分流</li>
+				</ul>
+			</div>
+		</div>
+	</section>
+
+	<!-- 6.5 提交级 + 精确异常 -->
+	<section>
+		<h2>后端 — 提交级与精确异常</h2>
+		<div style="font-size: 0.7em; line-height: 1.7;">
+			提交级（CommitStage）从 ROB 头部按程序顺序逐条提交，是<strong>乱序执行恢复顺序语义</strong>的关键环节。
+			每次提交执行以下 7 步：
+		</div>
+		<div class="four-grid"
+			style="grid-template-columns: 1fr 1fr 1fr; gap: 0.4em; font-size: 0.65em; margin-top: 0.3em;">
+			<div class="grid-item" style="border-top-color: #27ae60;">
+				<h4>1. 写 ArchRAT</h4>
+				<p>逻辑 rd → 新 prd 映射写入 ArchRAT，确定性状态前进</p>
+			</div>
+			<div class="grid-item" style="border-top-color: #27ae60;">
+				<h4>2. 释放 old_prd</h4>
+				<p>old_prd 归还 FreeList，供后续指令重命名</p>
+			</div>
+			<div class="grid-item" style="border-top-color: #c0392b;">
+				<h4>3. 异常注入</h4>
+				<p>检测异常/中断 → 触发 trap，调 CSRU 写 mcause/mepc，redirect 到 mtvec</p>
+			</div>
+			<div class="grid-item" style="border-top-color: #e67e22;">
+				<h4>4. mret/sret</h4>
+				<p>从 mepc/sepc 取返回地址，恢复特权级</p>
+			</div>
+			<div class="grid-item" style="border-top-color: #8e44ad;">
+				<h4>5. fence.i / sfence.vma</h4>
+				<p>对外发出 fence_i / sfence_vma，通知 ICache / iTLB 失效</p>
+			</div>
+			<div class="grid-item" style="border-top-color: #2980b9;">
+				<h4>6. 分支验证</h4>
+				<p>BRU 实际结果 vs 前端预测；不一致 ⇒ redirect + flush</p>
+			</div>
+		</div>
+		<div style="display: grid; grid-template-columns: 2fr 3fr; gap: 0.5em; margin-top: 0.4em; font-size: 0.7em;">
+			<div class="grid-item"
+				style="background: #f8f9fa; padding: 0.5em 0.7em; border-radius: 6px; border-top: 3px solid #2c3e50;">
+				<h4>7. DiffTest probe</h4>
+				<p>输出 PC / dnpc / inst / GPR / CSR 给 DiffTest 框架，与 Spike 逐条比对</p>
+			</div>
+			<div class="highlight-box green" style="font-size: 0.95em; margin: 0;">
+				<strong>异常严格在提交点处理</strong>：推测路径上的指令不会修改任何体系结构状态。
+				<span class="green">⇒ 异常对程序员表现为在触发指令处精确发生（精确异常）</span>。
+			</div>
+		</div>
+	</section>
+
+</section>
