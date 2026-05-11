@@ -6,22 +6,49 @@
 		<h2>缓存 — VIPT ICache（4 路组相联）</h2>
 		<div class="two-col" style="gap: 0.5em;">
 			<div>
-				<img src="public/icache-fsm.png" alt="ICache 状态机"
-					style="max-width: 100%; max-height: 320px; border-radius: 6px; border: 1px solid #ddd;" />
-				<p class="small center">ICache 主状态机（含 fence_drain 状态）</p>
-				<img src="public/plru.png" alt="PLRU"
-					style="max-width: 80%; max-height: 110px; border-radius: 6px; border: 1px solid #ddd; margin-top: 0.4em;" />
-				<p class="small center">PLRU 二叉树替换策略</p>
+				<pre class="mermaid">
+stateDiagram-v2
+  idle --> lookup: in.req ∧ !fence_i (latch addr)
+  lookup --> lookup: hit ∧ in.req
+  lookup --> idle: hit ∧ !in.req
+  lookup --> miss: miss
+  miss --> replace: 1-cycle pass-through
+  replace --> refill: out.ar.fire (start burst)
+  replace --> idle: fence_i ∧ !out.ar.fire
+  replace --> fence_drain: fence_i ∧ out.ar.fire
+  refill --> idle: out.r.fire ∧ out.r.last (commit line, done)
+  refill --> fence_drain: fence_i (abort commit, keep drain)
+  fence_drain --> idle: out.r.fire ∧ out.r.last
+				</pre>
+				<p class="small center">ICache FSM（idle/lookup/miss/replace/refill/fence_drain）</p>
 			</div>
 			<div style="font-size: 0.7em;">
 				<table class="compact-table" style="font-size: 1em;">
 					<tbody>
-						<tr><td>结构</td><td><strong>VIPT</strong>（Virtually Indexed, Physically Tagged）</td></tr>
-						<tr><td>组织方式</td><td>4 路组相联</td></tr>
-						<tr><td>缓存行</td><td>64 字节</td></tr>
-						<tr><td>组数 / 总容量</td><td>64 组 / <strong>16 KB</strong></td></tr>
-						<tr><td>替换策略</td><td><strong>PLRU</strong>（伪 LRU，二叉树位）</td></tr>
-						<tr><td>突发传输</td><td>AXI4 <strong>WRAP</strong> 模式</td></tr>
+						<tr>
+							<td>结构</td>
+							<td><strong>VIPT</strong>（Virtually Indexed, Physically Tagged）</td>
+						</tr>
+						<tr>
+							<td>组织方式</td>
+							<td>4 路组相联</td>
+						</tr>
+						<tr>
+							<td>缓存行</td>
+							<td>64 字节</td>
+						</tr>
+						<tr>
+							<td>组数 / 总容量</td>
+							<td>64 组 / <strong>16 KB</strong></td>
+						</tr>
+						<tr>
+							<td>替换策略</td>
+							<td><strong>PLRU</strong>（伪 LRU，二叉树位）</td>
+						</tr>
+						<tr>
+							<td>突发传输</td>
+							<td>AXI4 <strong>WRAP</strong> 模式</td>
+						</tr>
 					</tbody>
 				</table>
 				<div class="highlight-box" style="font-size: 0.92em;">
@@ -32,6 +59,11 @@
 					<strong>缓存级差分测试</strong>：通过 DPI-C 接口将硬件 PLRU 与
 					Rust 软件模型逐次比对 hit/replace 决策，
 					定位仅靠架构状态比对无法发现的<span class="green">替换策略缺陷</span>。
+				</div>
+				<div class="highlight-box" style="font-size: 0.9em;">
+					<strong>fence_drain 的必要性</strong>：当 <code>fence_i</code> 到达时若 AXI 读突发已发出，
+					不能直接丢弃在途事务，必须继续接收直至 <code>r.last</code>。
+					否则总线侧响应无人消费，后续请求可能被阻塞并引发<span class="accent">死锁</span>。
 				</div>
 			</div>
 		</div>
@@ -44,10 +76,22 @@
 			<div style="font-size: 0.7em;">
 				<table class="compact-table" style="font-size: 1em;">
 					<tbody>
-						<tr><td>组织</td><td>VIPT 4 路 × 64 组 × 64B = <strong>16 KB</strong></td></tr>
-						<tr><td>写策略</td><td><strong>Write-back + Write-allocate</strong></td></tr>
-						<tr><td>状态数</td><td>7 态主状态机（含 flush 流程）</td></tr>
-						<tr><td>关键优化</td><td>Write Buffer：写命中不阻塞主 FSM</td></tr>
+						<tr>
+							<td>组织</td>
+							<td>VIPT 4 路 × 64 组 × 64B = <strong>16 KB</strong></td>
+						</tr>
+						<tr>
+							<td>写策略</td>
+							<td><strong>Write-back + Write-allocate</strong></td>
+						</tr>
+						<tr>
+							<td>状态数</td>
+							<td>7 态主状态机（含 flush 流程）</td>
+						</tr>
+						<tr>
+							<td>关键优化</td>
+							<td>Write Buffer：写命中不阻塞主 FSM</td>
+						</tr>
 					</tbody>
 				</table>
 				<div class="highlight-box" style="font-size: 0.92em;">
@@ -58,24 +102,28 @@
 			</div>
 			<div style="font-size: 0.65em;">
 				<h4 style="color: #2c3e50; font-size: 1em;">7 态主状态机概览</h4>
-				<div class="micro-arch" style="font-size: 0.95em; flex-wrap: wrap;">
-					<div class="ma-box">idle</div>
-					<span class="ma-arrow">→</span>
-					<div class="ma-box">lookup</div>
-					<span class="ma-arrow">→</span>
-					<div class="ma-box late">miss</div>
-					<span class="ma-arrow">→</span>
-					<div class="ma-box late">replace<br/>(W+B+AR)</div>
-					<span class="ma-arrow">→</span>
-					<div class="ma-box exec">refill</div>
-				</div>
-				<div class="micro-arch" style="font-size: 0.95em; margin-top: 0.4em;">
-					<div class="ma-box ctrl">flush_scan</div>
-					<span class="ma-arrow">⇄</span>
-					<div class="ma-box ctrl">flush_wb</div>
-					<span class="ma-arrow">⇒</span>
-					<div class="ma-box">idle</div>
-				</div>
+				<pre class="mermaid">
+stateDiagram-v2
+  idle --> flush_scan: fence_i ∨ sfence_vma
+  idle --> lookup: in.req ∧ !wb_conflict
+
+  lookup --> lookup: hit ∧ in.req ∧ !wb_conflict
+  lookup --> idle: hit ∧ (!in.req ∨ wb_conflict)
+  lookup --> miss: miss
+
+  miss --> replace: !victim_dirty
+  miss --> replace: victim_dirty ∧ out.aw.fire
+
+  replace --> refill: ar_sent ∧ b_received
+  refill --> idle: out.r.fire ∧ out.r.last
+
+  flush_scan --> flush_wb: fw_dirty ∧ out.aw.fire
+  flush_scan --> flush_scan: !fw_dirty ∧ !scan_done
+  flush_scan --> idle: !fw_dirty ∧ scan_done
+
+  flush_wb --> flush_scan: wb_burst_done ∧ b_received ∧ !scan_done
+  flush_wb --> idle: wb_burst_done ∧ b_received ∧ scan_done
+				</pre>
 				<ul style="font-size: 0.95em; margin-top: 0.4em;">
 					<li><strong>replace 并行</strong>：W 通道写回脏数据 + B 等待回应 + AR 发起 refill 读</li>
 					<li><strong>refill</strong>：R 通道逐拍写回 data bank；R.last 时更新 tag/valid/dirty + 推进 PLRU</li>
@@ -93,13 +141,14 @@
 				<h4 style="color: #2c3e50; font-size: 0.85em;">fence.i：分离式 L1 的指令-数据一致性</h4>
 				<p style="font-size: 0.7em; line-height: 1.6;">
 					典型场景 = Bootloader 拷贝指令到 SDRAM 后跳转执行（自修改代码）：</p>
-				<div style="background: #f8f9fa; padding: 0.5em; border-radius: 6px; line-height: 2.3; font-size: 0.7em; text-align: center;">
+				<div
+					style="background: #f8f9fa; padding: 0.5em; border-radius: 6px; line-height: 2.3; font-size: 0.7em; text-align: center;">
 					<span class="pipeline-box">提交 fence.i</span>
-					<span style="color:#666;">→</span>
-					<span class="pipeline-box red-bg">CommitStage io.flush</span><br/>
-					<span class="pipeline-box orange-bg">DCache flush_scan→wb</span>
-					<span style="color:#666;">→</span>
-					<span class="pipeline-box green-bg">ICache 整片 invalidate</span><br/>
+					<span style="color:#666;">-></span>
+					<span class="pipeline-box red-bg">CommitStage io.flush</span><br />
+					<span class="pipeline-box orange-bg">DCache flush_scan -> wb</span>
+					<span style="color:#666;">-></span>
+					<span class="pipeline-box green-bg">ICache 整片 invalidate</span><br />
 					<span class="pipeline-box purple-bg">IFU 重取指</span>
 				</div>
 				<div class="highlight-box" style="font-size: 0.78em;">
@@ -108,13 +157,14 @@
 				</div>
 			</div>
 			<div>
-				<h4 style="color: #2c3e50; font-size: 0.85em;">DMA ↔ DCache 一致性（virtio-disk）</h4>
+				<h4 style="color: #2c3e50; font-size: 0.85em;">DMA <-> DCache 一致性（virtio-disk）</h4>
 				<p style="font-size: 0.7em; line-height: 1.6;">
 					xv6 移植时引入 virtio-disk DMA，与 CPU 共享 SDRAM；DMA 与 DCache 之间无硬件协议。
-					<strong>问题表现</strong>：</p>
+					<strong>问题表现</strong>：
+				</p>
 				<ul style="font-size: 0.7em;">
-					<li><strong>CPU → DMA</strong>：sw 写入数据被 DCache 吸收为脏行 → DMA 从 SDRAM 读取仍是旧值</li>
-					<li><strong>DMA → CPU</strong>：DMA 写入 SDRAM 后 → CPU 仍命中旧 DCache，看不到新数据</li>
+					<li><strong>CPU -> DMA</strong>：sw 写入数据被 DCache 吸收为脏行 -> DMA 从 SDRAM 读取仍是旧值</li>
+					<li><strong>DMA -> CPU</strong>：DMA 写入 SDRAM 后 -> CPU 仍命中旧 DCache，看不到新数据</li>
 				</ul>
 				<div class="highlight-box green" style="font-size: 0.78em;">
 					<strong>软件侧解决</strong>：在所有触发/终结 DMA 的 MMIO 前后插入 fence，
