@@ -4,20 +4,20 @@
 	<!-- 5.1 IFU 4 段流水 -->
 	<section>
 		<h2>前端 — IFU 流水化（F0/F1/F2+Fp/F3）</h2>
-		<div class="two-col-3-2" style="gap: 0.5em;">
-			<div>
+		<div style="display: flex; flex-direction: column; gap: 0.45em;">
+			<div class="center">
 				<img src="/ifu-pipeline.drawio.png" alt="IFU 4 段流水"
-					style="max-width: 100%; max-height: 440px; border-radius: 6px; border: 1px solid #ddd;" />
+					style="max-width: 96%; max-height: 300px; border-radius: 6px; border: 1px solid #ddd;" />
 			</div>
 			<div style="font-size: 0.7em;">
-				<div class="four-grid" style="grid-template-columns: 1fr; gap: 0.35em;">
+				<div class="four-grid" style="grid-template-columns: 1fr 1fr; gap: 0.35em;">
 					<div class="grid-item" style="border-top-color: #2980b9;">
 						<h4>F0：PC 投机推进</h4>
 						<p>每拍假设 <code>pc_q + 4</code>；taken 分支由 F3 自重定向回卷</p>
 					</div>
 					<div class="grid-item" style="border-top-color: #e67e22;">
 						<h4>F1：MMU 地址翻译</h4>
-						<p>16 项全相联 iTLB + PTW 子 FSM；Sv39 关闭时直通</p>
+						<p>16 项全相联 iTLB + PTW(page table walker) 子 FSM</p>
 					</div>
 					<div class="grid-item" style="border-top-color: #27ae60;">
 						<h4>F2 + Fp：ICache 控制</h4>
@@ -25,11 +25,8 @@
 					</div>
 					<div class="grid-item" style="border-top-color: #8e44ad;">
 						<h4>F3：预测 + 后端交付</h4>
-						<p>切出 32-bit 指令；驱动 Predict；生成 <code>fe_take_branch</code></p>
+						<p>输出 32-bit 指令；驱动 Predict；生成 <code>fe_take_branch</code></p>
 					</div>
-				</div>
-				<div class="highlight-box green" style="font-size: 0.95em; margin-top: 0.3em;">
-					<strong>设计目标</strong>：直线代码<strong>稳态 1 IPC</strong>，taken 分支仅引入 <strong>2 拍气泡</strong>。
 				</div>
 			</div>
 		</div>
@@ -37,61 +34,51 @@
 
 	<!-- 5.2 F1 PTW 子 FSM -->
 	<section>
-		<h2>前端 — F1 PTW 子 FSM（squash 安全设计）</h2>
+		<h2>F1 PTW 子 FSM（squash 安全设计）</h2>
 		<div class="two-col-3-2" style="gap: 0.5em;">
 			<div>
 				<pre class="mermaid">
 stateDiagram-v2
-  direction LR
-  [*] --> idle
   idle --> req: tlb_miss
-  req --> waitResp: ptw.req.fire<br/>(latch vpn)
-  waitResp --> idle: ptw.resp.valid<br/>(refill iTLB if<br/>!abandoned &amp;&amp;<br/>vpn match)
-  req --> drain: squash &amp;&amp;<br/>going inflight
-  waitResp --> drain: squash &amp;&amp;<br/>no resp yet
-  drain --> idle: ptw.resp.valid<br/>(drop silently)
-  req --> idle: squash &amp;&amp;<br/>!going inflight
-  waitResp --> idle: squash &amp;&amp;<br/>resp arriving
+  req --> waitResp: ptw.req.fire(latch vpn)
+  waitResp --> idle: ptw.resp.valid(refill iTLB if !abandoned ∧ vpn match)
+  req --> drain: squash ∧ going inflight
+  waitResp --> drain: squash ∧ no resp yet
+  drain --> idle: ptw.resp.valid(drop silently)
+  req --> idle: squash ∧ !going inflight
+  waitResp --> idle: squash ∧ resp arriving
 </pre>
 			</div>
 			<div style="font-size: 0.7em; line-height: 1.65;">
-				<h4 style="color: #2c3e50; font-size: 0.95em;">为什么需要 4 态 + drain</h4>
-				<p>F0 投机推进可被 taken 分支或后端 flush 同拍打断。
-					若 PTW 已对 AXI 发出页表读但被 squash，必须吸收返回的响应，
-					否则下一次 TLB 缺失会因 <code>ptw.req.ready=0</code> 而<strong>死锁</strong>。</p>
-				<h4 style="color: #2c3e50; font-size: 0.95em;">关键校验</h4>
-				<ul style="font-size: 0.95em;">
-					<li><code>ptw_vpn_reg</code>：锁存当前在途 VPN</li>
-					<li><code>ptw_abandoned</code>：标记此次请求已被丢弃</li>
-					<li>refill 三条件并满足：<code>!abandoned &amp;&amp; !fault &amp;&amp; vpn 匹配</code></li>
+				<h4 style="color: #2c3e50; font-size: 0.95em;">squash 与 drain 的必要性</h4>
+				<p>前端在“识别一条指令”之前，必须先完成两步：<strong>先地址翻译</strong>，再<strong>按物理地址取指</strong>。
+					因此我把相关流程拆成多个阶段：F1 负责 MMU/PTW，F2 负责 ICache 访问，F3 再进行指令切分与解码前处理。</p>
+				<ul>
+					<li>waitResp: 等待 ptw 响应，将要得到的物理地址有效</li>
+					<li>drain: 等待 ptw 响应，但是将要得到的物理地址无效</li>
 				</ul>
-				<div class="highlight-box" style="font-size: 0.95em;">
-					这一思路与 ICache 的 <code>fence_drain</code> 状态相呼应：
-					<span class="green">让前端结构上对所有 serializing 指令完全透明</span>。
-				</div>
+				<p>若 F3 识别到无条件跳转，说明此前 F1/F2 可能已被错误路径污染，此时需要通过 squash 让 F1 放弃当前 PTW 事务。
+					但 PTW 事务一定发起，那必须完成响应，否则后续请求会阻塞，进而导致死锁，所以我设置了 drain 状态。</p>
 			</div>
 		</div>
 	</section>
 
 	<!-- 5.3 分支预测：GShare + IJTC + RAS -->
 	<section>
-		<h2>前端 — 分支预测：GShare + IJTC + RAS</h2>
+		<h2>F3 分支预测：GShare + IJTC + RAS</h2>
 		<div class="two-col" style="gap: 0.5em;">
 			<div>
-				<img src="/gshare-xor.png" alt="GShare 索引"
-					style="max-width: 92%; max-height: 200px; border-radius: 6px; border: 1px solid #ddd;" />
-				<p class="small center">GShare：GHR ⊕ PC[63:4] → PHT 索引</p>
-				<img src="/ras-stack.png" alt="RAS 栈"
-					style="max-width: 92%; max-height: 180px; border-radius: 6px; border: 1px solid #ddd; margin-top: 0.4em;" />
-				<p class="small center">RAS：深度 8 循环栈</p>
+				<img src="/gshare-xor.png" style="max-width: 92%; max-height: 200px;" />
+				<p class="small center">GShare</p>
+				<img src="/ras-stack.png" style="max-width: 92%; max-height: 180px;" />
+				<p class="small center">RAS</p>
 			</div>
 			<div style="font-size: 0.68em;">
 				<table class="compact-table" style="font-size: 0.95em; margin: 0;">
 					<thead>
 						<tr>
 							<th>预测器</th>
-							<th>结构</th>
-							<th>容量</th>
+							<th>结构 </th>
 							<th>触发</th>
 							<th>更新</th>
 						</tr>
@@ -99,27 +86,30 @@ stateDiagram-v2
 					<tbody>
 						<tr>
 							<td><strong>GShare</strong></td>
-							<td>2-bit 饱和计数器 PHT</td>
-							<td>4096</td>
+							<td>直接映射</td>
 							<td>条件分支</td>
-							<td>提交时（保守）</td>
+							<td>提交时</td>
 						</tr>
 						<tr>
 							<td><strong>IJTC</strong></td>
-							<td>全相联 CAM (PC 为 tag)</td>
-							<td>8</td>
+							<td>全相联</td>
 							<td>JALR (非 ret)</td>
 							<td>提交时 + FIFO 替换</td>
 						</tr>
 						<tr>
 							<td><strong>RAS</strong></td>
-							<td>循环栈</td>
-							<td>8</td>
+							<td>栈</td>
 							<td>call/ret</td>
 							<td>F3 出队时即时</td>
 						</tr>
 					</tbody>
 				</table>
+				<div class="highlight-box" style="font-size: 0.88em; margin-top: 0.35em;">
+					<strong>算法简述</strong>：
+					<code>GShare</code> 用 <code>idx = PC[low] ⊕ GHR</code> 索引、2-bit 饱和计数器预测方向；
+					<code>IJTC</code> 以 <code>JALR PC</code> 为 tag 全相联匹配目标地址，未命中回退到顺序流；
+					<code>RAS</code> 在 call 时 push 返回地址、ret 时 pop 作为预测目标。
+				</div>
 				<div class="highlight-box" style="font-size: 0.92em; margin-top: 0.4em;">
 					<strong>省去 BTB 的取舍</strong>：在 4 段流水前端中，<code>JAL/BR</code> 目标 = <code>PC + imm</code>
 					可在 F3 一拍直算；仅 <code>JALR</code> 需 IJTC/RAS。
@@ -135,44 +125,28 @@ stateDiagram-v2
 
 	<!-- 5.4 推测性控制冒险与自重定向 -->
 	<section>
-		<h2>前端 — 推测性控制冒险与自重定向</h2>
-		<div style="font-size: 0.78em; margin-bottom: 0.4em;">
-			若全部把控制冒险交给后端，每条 taken 分支将付出"前端清空 + 穿越后端译码/重命名/发射/执行"的完整代价。
-			本设计在 F3 引入<strong>基于预测的推测性控制冒险解决通道</strong> <code>fe_take_branch</code>。
+		<h2 style="font-size: 1.5em;">推测性控制冒险与自重定向</h2>
+		<div style="font-size: 0.68em; line-height: 1.55;">
+			为降低前端复杂度，前端不专门处理强制 serializing 指令：
+			<code>ecall/ebreak</code>、<code>mret/sret</code>、<code>sfence.vma</code>、<code>fence.i</code>、<code>CSR 写</code>。
+			这类指令由后端在提交阶段触发全局 <code>flush</code> 并回传权威 PC。
 		</div>
-		<div style="background: #f8f9fa; padding: 0.6em; border-radius: 6px; text-align: center; line-height: 2.5;">
-			<span class="pipeline-box">F0 (pc_q+4)</span>
-			<span style="color:#666;">→</span>
-			<span class="pipeline-box">F1 iTLB</span>
-			<span style="color:#666;">→</span>
-			<span class="pipeline-box">F2/Fp ICache</span>
-			<span style="color:#666;">→</span>
-			<span class="pipeline-box red-bg">F3 fe_take_branch</span>
-			<br />
-			<span style="color:#c0392b; font-size: 0.7em;">↑ 自重定向 ⟸ pc_q := predict.dnpc（覆盖 pc_q+4）↑</span>
+		<div class="highlight-box" style="font-size: 0.82em; margin-top: 0.35em;">
+			<strong>设计取舍</strong>：serializing 指令在实际程序中占比极低，依据 <strong>Amdahl 定律</strong>，
+			不值得为其在前端引入复杂专用优化路径。
 		</div>
-		<div class="four-grid" style="margin-top: 0.4em; font-size: 0.7em;">
-			<div class="grid-item" style="border-top-color: #c0392b;">
-				<h4>三个写入源 优先级</h4>
-				<p>Chisel "最后连接胜出"规则天然实现：
-					<code>pc_q := pc_q + 4</code> ←
-					<code>fe_take_branch ⇒ predict.dnpc</code> ←
-					<code>io.flush ⇒ io.dnpc</code>
-				</p>
+		<div style="background: #f8f9fa; padding: 0.5em; border-radius: 6px; margin-top: 0.35em;">
+			<h4 style="margin: 0 0 0.25em 0; color: #2c3e50; font-size: 0.82em;">PC 更新三来源与优先级</h4>
+			<div style="text-align: center; font-size: 0.78em; line-height: 2;">
+				<span class="pipeline-box" style="padding: 0.18em 0.42em;">后端权威 PC（flush / redirect）</span>
+				<span style="color:#666;">&gt;</span>
+				<span class="pipeline-box orange-bg" style="padding: 0.18em 0.42em;">前端预测 PC（F3）</span>
+				<span style="color:#666;">&gt;</span>
+				<span class="pipeline-box gray-bg" style="padding: 0.18em 0.42em;">顺序 PC（pc + 4）</span>
 			</div>
-			<div class="grid-item" style="border-top-color: #27ae60;">
-				<h4>气泡数</h4>
-				<p>taken 分支 <strong>仅 2 拍</strong>气泡（F0/F1/F2 同步清空 → F0 下一拍即从 predict.dnpc 取指）</p>
-			</div>
-			<div class="grid-item" style="border-top-color: #2980b9;">
-				<h4>serializing 指令</h4>
-				<p><code>fence.i / sfence.vma / mret/sret / CSR write</code> 全部下沉到后端 CommitStage 的 <code>io.flush</code>
-					处理</p>
-			</div>
-			<div class="grid-item" style="border-top-color: #8e44ad;">
-				<h4>意义</h4>
-				<p>前端结构上完全摆脱 serializing 指令，简化设计；按 Amdahl 定律，专用通道收益不足以抵消复杂度</p>
-			</div>
+		</div>
+		<div class="highlight-box green" style="font-size: 0.8em; margin-top: 0.35em;">
+			优先级多路选择保证：出现异常/序列化事件时以后端结果为准；无冲突时走预测，最后回退到顺序推进。
 		</div>
 	</section>
 
