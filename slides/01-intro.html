@@ -41,10 +41,8 @@
 		<div>
 			<h3 style="color: #2980b9;">研究背景</h3>
 			<ul>
-				<li>开源指令集架构 <span class="blue">RISC-V</span> 的快速发展，
-					使基于开源生态开展高性能处理器研究成为体系结构领域的重要方向</li>
-				<li><span class="accent">乱序执行</span>通过动态调度与寄存器重命名提升指令级并行性，
-					是现代处理器获得高性能的关键机制</li>
+				<li>开源指令集架构 <span class="blue">RISC-V</span> 的快速发展</li>
+				<li><span class="accent">乱序执行</span>是现代处理器获得高性能的关键机制</li>
 				<li>面向<strong>教学与工程实践</strong>需要可复现、可验证、可演化的
 					RISC-V 乱序处理器实现路径</li>
 			</ul>
@@ -52,14 +50,14 @@
 		<div>
 			<h3 style="color: #27ae60;">课题目标</h3>
 			<ul>
-				<li>使用 <strong>Chisel</strong> 设计支持 <span class="green">RV64IM</span> 的
-					单发射乱序处理器；统一物理寄存器 + 顺序提交实现精确异常</li>
+				<li>使用 <strong>Chisel</strong> 设计并实现了 <span class="green">RV64IM</span> 的
+					单发射乱序处理器</li>
 				<li>构建包含<strong>自主设计 IP 核</strong>（Flash / PSRAM / SDRAM）的完整
 					<strong>SoC</strong> 系统
 				</li>
 				<li>实现 <strong>M/S/U</strong> 三级特权架构与 <strong>Sv39</strong> 虚拟内存，
 					支持运行 <strong>xv6</strong> 教学操作系统</li>
-				<li>构建 Verilator + Rust 的仿真验证平台与定量性能评估框架</li>
+				<li>构建 Verilator + C++20 的仿真验证平台</li>
 			</ul>
 		</div>
 	</div>

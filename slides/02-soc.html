@@ -5,19 +5,25 @@
 	<section>
 		<h2>SoC 系统整体架构</h2>
 		<div class="center">
-			<img src="/soc.png" alt="SoC 整体架构"
-				style="max-width: 78%; max-height: 380px; border-radius: 6px; border: 1px solid #ddd;" />
+			<img src="/soc.png" alt="SoC 整体架构" style="max-width: 60%;" />
 		</div>
 		<div class="highlight-box" style="font-size: 0.62em; margin-top: 0.4em;">
 			<strong>分层总线架构</strong>：CPU 作为唯一 AXI4 Master 接入<strong>一级 Crossbar</strong>，
-			仅挂接 SDRAM 高带宽路径以最短化访存延迟；
-			MROM、SRAM 与 AXI4ToAPB 桥经 <strong>Frag/Yanker</strong> 接入<strong>二级 Crossbar</strong>；
-			XIP-Flash、PSRAM(QSPI)、UART 16550、GPIO、PS2、VGA、PLIC、CLINT 等低速设备统一进入 APB 域。
+			一级 Crossbar 下面只挂着 SDRAM 高速路径；
+			MROM、SRAM 与 AXI4ToAPB 接入<strong>二级 Crossbar</strong>；
+			XIP-Flash、PSRAM(QSPI/QPI)、UART 16550、GPIO、PS2、VGA、PLIC、CLINT 等低速设备统一进入 APB 域。
+		</div>
+	</section>
+
+	<section>
+		<h2>SoC 系统整体架构</h2>
+		<div class="center">
+			<img src="/soc.png" alt="SoC 整体架构" style="max-width: 60%;" />
 		</div>
 		<div class="four-grid" style="margin-top: 0.4em; font-size: 0.65em;">
 			<div class="grid-item">
 				<h4>三类速率域分离</h4>
-				<p>SDRAM 不受慢设备干扰；APB 实现简单；扩展新外设只需在 APB Fanout 增加地址映射</p>
+				<p>SDRAM 不受慢设备干扰；MROM, PSRAM, SRAM仅作为；外设统一接入 ABP 域</p>
 			</div>
 			<div class="grid-item" style="border-top-color: #27ae60;">
 				<h4>统一 Diplomacy</h4>
@@ -31,49 +37,32 @@
 		<h2>多层次存储与启动链路</h2>
 		<div style="font-size: 0.78em; margin-bottom: 0.5em;">
 			按"启动可靠性 → 访问延迟 → 容量"分工：MROM / SRAM / Flash / PSRAM / SDRAM 五层存储；
-			启动采用<strong>分级引导</strong>避免直接从串行 Flash 执行大体量程序的性能损失。
+			启动采用<strong>分级引导</strong>，避免直接从 XIP Flash 执行大体量程序，降低性能损失。
 		</div>
 		<div
 			style="font-size: 0.85em; background: #f8f9fa; padding: 0.7em; border-radius: 6px; line-height: 2.2; text-align: center;">
 			<span class="pipeline-box gray-bg">_start</span>
-			<span style="color:#666;">→</span>
+			<span style="color:#666;">(MROM)</span>
+			<span style="color:#666;"> -> </span>
 			<span class="pipeline-box">FSBL</span>
 			<span style="color:#666;">(XIP Flash)</span>
-			<span style="color:#666;">→</span>
+			<span style="color:#666;"> -> </span>
 			<span class="pipeline-box orange-bg">SSBL</span>
 			<span style="color:#666;">(SDRAM)</span>
-			<span style="color:#666;">→</span>
+			<span style="color:#666;"> -> </span>
 			<span class="pipeline-box green-bg">trm_init</span>
-			<span style="color:#666;">→</span>
+			<span style="color:#666;"> -> </span>
 			<span class="pipeline-box purple-bg">main / kernel</span>
 		</div>
-		<div class="two-col" style="margin-top: 0.5em; font-size: 0.72em;">
-			<div>
-				<h4 style="color: #2c3e50;">分级引导职责</h4>
-				<ul>
-					<li><strong>FSBL</strong>（XIP Flash 中执行）：初始化 SP，将 SSBL 拷贝到 SDRAM</li>
-					<li><strong>SSBL</strong>（SDRAM 中执行）：将应用程序/内核从 Flash 拷贝到 SDRAM</li>
-					<li><strong>trm_init</strong>：初始化外设、装载 mtvec、建立裸机运行时</li>
-					<li><strong>main</strong>：可以是裸机程序，也可以是 RT-Thread / xv6</li>
-				</ul>
-			</div>
-			<div>
-				<h4 style="color: #2c3e50;">外设集成</h4>
-				<div class="four-grid" style="font-size: 0.95em; grid-template-columns: 1fr 1fr;">
-					<div class="grid-item" style="padding: 0.3em;"><strong>UART 16550</strong>
-						<p class="small">APB 封装，串口终端</p>
-					</div>
-					<div class="grid-item" style="padding: 0.3em;"><strong>GPIO</strong>
-						<p class="small">LED / 数码管 / 拨码开关</p>
-					</div>
-					<div class="grid-item" style="padding: 0.3em;"><strong>PS2</strong>
-						<p class="small">Chisel 实现 PS2 协议</p>
-					</div>
-					<div class="grid-item" style="padding: 0.3em;"><strong>VGA</strong>
-						<p class="small">显存 + 标准 VGA 时序</p>
-					</div>
-				</div>
-			</div>
+		<div>
+			<h4 style="color: #2c3e50;">分级引导职责</h4>
+			<ul>
+				<li><strong>_start</strong>负责设置栈顶地址、跳转到 fsbl</li>
+				<li><strong>FSBL(first stage bootloader)</strong>将 SSBL 拷贝到 SDRAM</li>
+				<li><strong>SSBL(second stage bootloader)</strong>将应用程序/内核从 Flash 拷贝到 SDRAM</li>
+				<li><strong>trm_init(turing machine init)</strong>初始化外设、装载 mtvec、建立裸机运行时</li>
+				<li><strong>main</strong>可以是裸机程序，也可以是 RT-Thread / xv6</li>
+			</ul>
 		</div>
 	</section>
 
