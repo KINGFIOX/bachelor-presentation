@@ -1,44 +1,82 @@
-<!-- ==================== 四、前后端解耦架构（1 张） ==================== -->
+<!-- ==================== 四、前后端解耦架构（2 张） ==================== -->
 <section>
-	<h2>处理器核心 — 前后端解耦微架构</h2>
-	<div class="two-col-3-2" style="gap: 0.6em;">
-		<div>
-			<pre class="mermaid">
-flowchart LR
-  subgraph FE["FrontEnd"]
-    IFU["IFU<br/>4-stage pipe<br/>+ iTLB + PTW"]
-    Predict["Predict<br/>CU + IGU<br/>BHT + IJTC + RAS"]
-    IFU -- "pc / inst" --> Predict
-    Predict -- "predict_dnpc" --> IFU
-  end
-  IQ["Instruction Queue<br/>(depth=4)"]
-  subgraph BE["BackEnd"]
-    DEC["Decode → Rename → Dispatch<br/>→ Issue → Exec → WB → (Late) → Commit"]
-  end
-  IFU -- "out (inst/pc/ghr)" --> IQ
-  IQ -- "in" --> BE
-  BE -. "redirect" .-> Predict
-  BE -. "flush / dnpc" .-> IFU
-  BE -. "flush" .-> IQ
-</pre>
-		</div>
-		<div style="font-size: 0.72em; line-height: 1.65;">
-			<h4 style="color: #2c3e50; font-size: 0.95em;">解耦的两个层次</h4>
-			<ul style="font-size: 0.95em;">
-				<li><strong>时序解耦</strong>：连接方式可配置，从点对点直连（0 周期）到深度可调队列；
-					前后端按各自节奏运行，<span class="green">缓冲带宽浪费</span></li>
-				<li><strong>实现解耦</strong>：标准握手协议通信，前端可换为<strong>软件 Spike 前端</strong>对后端进行<strong>满载压力测试</strong></li>
-			</ul>
-			<div class="highlight-box green" style="font-size: 0.95em; margin-top: 0.3em;">
-				实测中：Spike 软件前端跑 MicroBench
-				<strong>分支预测命中率 99.64%</strong>，几乎每周期供应一条指令；
-				从而暴露了原硬件前端因反压不足而隐藏的<strong>数据转发时机 bug</strong>。
+	<section>
+		<h2>处理器核心 — 前后端解耦微架构</h2>
+		<div class="two-col-3-2" style="gap: 0.6em;">
+			<div>
+				<div>
+					<pre class="mermaid">
+		flowchart LR
+		  subgraph FE["FrontEnd"]
+			IFU["IFU (4-stage, iTLB/PTW)"]
+			PRED["Predict (CU/IGU/BHT/IJTC/RAS)"]
+			IFU -- "pc/inst" --> PRED
+			PRED -- "predict_dnpc" --> IFU
+		  end
+		  IQ["Instruction Queue (depth=4)"]
+		  subgraph BE["BackEnd"]
+			BEPIPE["Decode -> Rename -> Dispatch -> Issue -> Exec -> WB -> Late -> Commit"]
+		  end
+		  IFU -- "inst/pc/ghr" --> IQ
+		  IQ -- "in" --> BEPIPE
+						</pre>
+				</div>
+				<div style="font-size: 0.62em; line-height: 1.55; margin-top: 0.35em;">
+					前端（FrontEnd）负责取指与分支预测，后端（BackEnd）负责指令执行。
+					<br>
+					当分支预测失败时，后端发起 <code>flush</code> 冲刷并通过 <code>redirect</code> 重定向 PC 。
+					<br>
+					常见应用：simt, 一个前端对应一组并行后端。
+				</div>
 			</div>
-			<h4 style="color: #2c3e50; font-size: 0.95em; margin-top: 0.4em;">PipelineConnect 泛型流水段</h4>
-			<p style="font-size: 0.95em;">基于 <code>T &lt;: Data</code> 类型参数实现的握手包装，
-				在所有流水段统一 <code>flush + ready/valid</code> 语义；
-				<span class="blue">同一抽象</span>从前端 IFU 用到后端 Issue/Exec/Commit。
-			</p>
+			<div style="font-size: 0.72em; line-height: 1.65;">
+				<h4 style="color: #2c3e50; font-size: 0.95em;">解耦的两个层次</h4>
+				<ul style="font-size: 0.95em;">
+					<li><strong>时序解耦</strong>：连接方式可配置，从点对点直连（0 周期）到深度可调队列；前后端按各自节奏运行</li>
+					<li><strong>实现解耦</strong>：通过统一握手协议通信，前端与后端可独立替换与调试</li>
+				</ul>
+				<div class="highlight-box green" style="font-size: 0.95em; margin-top: 0.3em;">
+					以 Instruction Queue 为边界，前端负责高吞吐供给指令，后端负责乱序执行。
+				</div>
+			</div>
 		</div>
-	</div>
+	</section>
+
+	<section>
+		<h2>前后端解耦：软件实现前端 + 硬件实现后端</h2>
+		<div class="two-col" style="gap: 0.6em; align-items: stretch;">
+			<div style="font-size: 0.7em; line-height: 1.7;">
+				<div class="highlight-box" style="font-size: 0.95em;">
+					<strong>问题背景</strong>：常规硬件前端受总线响应与 ICache miss 影响，供指速率有限，
+					后端长期“吃不饱”，高压力下的反压时序问题难以触发。
+				</div>
+				<div class="highlight-box" style="font-size: 0.95em;">
+					<strong>Debug 报告：</strong>
+					<br>
+					<ul>
+						<li> <a href="https://www.notion.so/kingfiox/CDB-f3f83f839c908318bcc0012607116b67?v=35683f839c90807dbd6b000c4cc32893&source=copy_link"
+								target="_blank">反压导致流水段寄存器错过
+								CDB 广播</a>
+						</li>
+						<li>
+							<a href="https://github.com/KINGFIOX/ysyxSoC/blob/master/report/BUG_OMISSIVE_FORWARD.md"
+								target="_blank">
+								遗漏的 RAT 同周期转发
+							</a>
+						</li>
+					</ul>
+				</div>
+			</div>
+			<div style="font-size: 0.72em; line-height: 1.65;">
+				<div>
+					<img src="/decouple-debug-microbench.png" alt="Spike 前端 MicroBench 结果"
+						style="max-width: 100%; max-height: 300px;" />
+				</div>
+				<div class="highlight-box green" style="font-size: 0.92em; margin-top: 0.45em;">
+					<strong>结论</strong>：前后端解耦不仅降低开发耦合度，更提供了可替换前端的验证能力，
+					可对后端进行针对性的满载压力测试，显著提升 bug 暴露效率。
+				</div>
+			</div>
+		</div>
+	</section>
 </section>
