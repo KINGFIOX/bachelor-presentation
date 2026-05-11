@@ -5,8 +5,7 @@
 	<section>
 		<h2>后端 — 乱序执行引擎总览</h2>
 		<div class="center">
-			<img src="/backend-arch.drawio.png" alt="后端乱序架构"
-				style="max-width: 85%; max-height: 420px; border-radius: 6px; border: 1px solid #ddd;" />
+			<img src="public/backend-arch.drawio.png" style="max-width: 85%; max-height: 420px;" />
 		</div>
 		<div class="highlight-box" style="font-size: 0.62em; margin-top: 0.4em;">
 			<strong>RV64IM</strong>，五条独立执行路径：
@@ -14,34 +13,33 @@
 			<span class="pipeline-box">MDU</span>
 			<span class="pipeline-box">BRU</span>
 			<span class="pipeline-box orange-bg">LSU (late)</span>
-			<span class="pipeline-box orange-bg">CSRU (late)</span>。
-			流水线：<strong>译码 → 重命名 → 分派 → 发射 → 执行 → 写回 → (晚执行) → 提交</strong>，
-			每级用 <code>PipelineConnect</code> 时序解耦。
+			<span class="pipeline-box orange-bg">CSRU (late)</span>
+			<br>
+			流水线：<strong>译码 -> 重命名 -> 分派 -> 发射 -> 执行 -> 写回 -> (晚执行) -> 提交</strong>
 		</div>
 	</section>
 
 	<!-- 6.2 寄存器重命名 -->
 	<section>
 		<h2>后端 — 寄存器重命名（统一物理寄存器）</h2>
+		<small>统一物理寄存器, physical register file, prf</small>
 		<div class="two-col" style="gap: 0.5em;">
 			<div style="font-size: 0.7em;">
 				<h4 style="color: #2c3e50; font-size: 0.95em;">四张表协同工作</h4>
 				<div class="micro-arch" style="font-size: 0.85em;">
 					<div class="ma-box">FreeList</div>
-					<span class="ma-arrow">→</span>
+					<span class="ma-arrow">-></span>
 					<div class="ma-box ctrl">FutureRAT</div>
-					<span class="ma-arrow">→</span>
-					<div class="ma-box exec">PRF<br />(9R/5W)</div>
-					<span class="ma-arrow">→</span>
+					<span class="ma-arrow">-></span>
+					<div class="ma-box exec">PRF</div>
+					<span class="ma-arrow">-></span>
 					<div class="ma-box late">BusyTable</div>
 				</div>
 				<ul style="font-size: 0.92em;">
-					<li><strong>PRF</strong>：9 读端口 (ALU×2 / BRU×2 / MDU×2 / LSU×2 / CSRU)，5 写端口</li>
+					<li><strong>PRF</strong>：9 读口 (ALU×2 / BRU×2 / MDU×2 / LSU×2 / CSRU)，5 写口</li>
 					<li><strong>FutureRAT</strong>：推测态映射；3 读端口（rs1/rs2/rd），1 写端口</li>
 					<li><strong>ArchRAT</strong>：已提交确定映射；提交时同步更新</li>
-					<li><strong>FreeList</strong>：分配/回收物理寄存器；
-						<span class="green">flush 时仅 1 周期由 ArchRAT 重建</span>
-					</li>
+					<li><strong>FreeList</strong>：分配/回收物理寄存器</li>
 					<li><strong>BusyTable</strong>：6 读 + 5 wakeup（即时/Exec/Late 三类时机）</li>
 				</ul>
 			</div>
