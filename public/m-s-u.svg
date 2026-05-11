@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="486pt" height="237pt" viewBox="0.00 0.00 486.00 237.00">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 233.07)">
+<title>Priv</title>
+<polygon fill="white" stroke="none" points="-4,4 -4,-233.07 481.61,-233.07 481.61,4 -4,4"/>
+<!-- U -->
+<g id="node1" class="node">
+<title>U</title>
+<ellipse fill="none" stroke="black" cx="42.68" cy="-43.87" rx="42.68" ry="18"/>
+<text xml:space="preserve" text-anchor="middle" x="42.68" y="-39.67" font-family="Times,serif" font-size="14.00">U-mode</text>
+</g>
+<!-- S -->
+<g id="node2" class="node">
+<title>S</title>
+<ellipse fill="none" stroke="black" cx="226.5" cy="-107.87" rx="41.08" ry="18"/>
+<text xml:space="preserve" text-anchor="middle" x="226.5" y="-103.67" font-family="Times,serif" font-size="14.00">S-mode</text>
+</g>
+<!-- U&#45;&gt;S -->
+<g id="edge1" class="edge">
+<title>U-&gt;S</title>
+<path fill="none" stroke="black" d="M57.99,-61.02C69.04,-72.98 85.44,-88.14 103.36,-95.87 125.35,-105.36 151.58,-108.83 174.08,-109.73"/>
+<polygon fill="black" stroke="black" points="173.88,-113.23 183.95,-109.96 174.03,-106.23 173.88,-113.23"/>
+<text xml:space="preserve" text-anchor="middle" x="134.84" y="-130.22" font-family="Times,serif" font-size="14.00">trap</text>
+<text xml:space="preserve" text-anchor="middle" x="134.84" y="-113.42" font-family="Times,serif" font-size="14.00">(delegated)</text>
+</g>
+<!-- M -->
+<g id="node3" class="node">
+<title>M</title>
+<ellipse fill="none" stroke="black" cx="433.31" cy="-43.87" rx="44.29" ry="18"/>
+<text xml:space="preserve" text-anchor="middle" x="433.31" y="-39.67" font-family="Times,serif" font-size="14.00">M-mode</text>
+</g>
+<!-- U&#45;&gt;M -->
+<g id="edge2" class="edge">
+<title>U-&gt;M</title>
+<path fill="none" stroke="black" d="M85.41,-42.29C91.44,-42.12 97.56,-41.97 103.36,-41.87 222.3,-39.88 252.08,-39.93 371.02,-41.87 373.08,-41.9 375.19,-41.94 377.32,-41.99"/>
+<polygon fill="black" stroke="black" points="377.19,-45.49 387.27,-42.24 377.36,-38.49 377.19,-45.49"/>
+<text xml:space="preserve" text-anchor="middle" x="226.5" y="-61.68" font-family="Times,serif" font-size="14.00">trap</text>
+<text xml:space="preserve" text-anchor="middle" x="226.5" y="-44.88" font-family="Times,serif" font-size="14.00">(not delegated)</text>
+</g>
+<!-- S&#45;&gt;U -->
+<g id="edge6" class="edge">
+<title>S-&gt;U</title>
+<path fill="none" stroke="black" d="M210.67,-91.13C199.63,-79.84 183.55,-65.7 166.32,-58.27 144.7,-48.94 119.05,-44.97 96.81,-43.47"/>
+<polygon fill="black" stroke="black" points="97.21,-39.99 87.05,-42.97 96.86,-46.98 97.21,-39.99"/>
+<text xml:space="preserve" text-anchor="middle" x="134.84" y="-79.27" font-family="Times,serif" font-size="14.00">sret</text>
+<text xml:space="preserve" text-anchor="middle" x="134.84" y="-62.47" font-family="Times,serif" font-size="14.00">(SPP=U)</text>
+</g>
+<!-- S&#45;&gt;S -->
+<g id="edge4" class="edge">
+<title>S-&gt;S</title>
+<path fill="none" stroke="black" d="M218.26,-125.65C216.86,-135.18 219.6,-143.87 226.5,-143.87 230.37,-143.87 232.94,-141.12 234.19,-137.02"/>
+<polygon fill="black" stroke="black" points="237.68,-137.32 234.66,-127.16 230.69,-136.98 237.68,-137.32"/>
+<text xml:space="preserve" text-anchor="middle" x="226.5" y="-164.87" font-family="Times,serif" font-size="14.00">trap</text>
+<text xml:space="preserve" text-anchor="middle" x="226.5" y="-148.07" font-family="Times,serif" font-size="14.00">(delegated)</text>
+</g>
+<!-- S&#45;&gt;S -->
+<g id="edge10" class="edge">
+<title>S-&gt;S</title>
+<path fill="none" stroke="black" d="M214.02,-125.31C204.88,-147.53 209.04,-177.47 226.5,-177.47 241.22,-177.47 246.48,-156.16 242.28,-136.15"/>
+<polygon fill="black" stroke="black" points="245.68,-135.3 239.41,-126.75 238.99,-137.34 245.68,-135.3"/>
+<text xml:space="preserve" text-anchor="middle" x="226.5" y="-198.47" font-family="Times,serif" font-size="14.00">sret</text>
+<text xml:space="preserve" text-anchor="middle" x="226.5" y="-181.67" font-family="Times,serif" font-size="14.00">(SPP=S)</text>
+</g>
+<!-- S&#45;&gt;M -->
+<g id="edge3" class="edge">
+<title>S-&gt;M</title>
+<path fill="none" stroke="black" d="M267.4,-110.93C297.08,-111.72 337.99,-109.58 371.02,-95.87 385.46,-89.87 399,-79.17 409.66,-69.02"/>
+<polygon fill="black" stroke="black" points="411.91,-71.72 416.49,-62.17 406.95,-66.78 411.91,-71.72"/>
+<text xml:space="preserve" text-anchor="middle" x="328.84" y="-131.95" font-family="Times,serif" font-size="14.00">trap</text>
+<text xml:space="preserve" text-anchor="middle" x="328.84" y="-115.15" font-family="Times,serif" font-size="14.00">(not delegated)</text>
+</g>
+<!-- M&#45;&gt;U -->
+<g id="edge8" class="edge">
+<title>M-&gt;U</title>
+<path fill="none" stroke="black" d="M399.09,-31.96C351.57,-16.4 261.43,7.64 184.32,-3.27 150.7,-8.02 113.87,-18.87 86.34,-28.16"/>
+<polygon fill="black" stroke="black" points="85.26,-24.83 76.95,-31.4 87.54,-31.45 85.26,-24.83"/>
+<text xml:space="preserve" text-anchor="middle" x="226.5" y="-24.27" font-family="Times,serif" font-size="14.00">mret</text>
+<text xml:space="preserve" text-anchor="middle" x="226.5" y="-7.47" font-family="Times,serif" font-size="14.00">(MPP=U)</text>
+</g>
+<!-- M&#45;&gt;S -->
+<g id="edge7" class="edge">
+<title>M-&gt;S</title>
+<path fill="none" stroke="black" d="M388.93,-41.56C359.08,-41.53 319.11,-44.63 286.67,-58.27 273.29,-63.9 260.64,-73.64 250.5,-83"/>
+<polygon fill="black" stroke="black" points="248.07,-80.48 243.36,-89.97 252.96,-85.49 248.07,-80.48"/>
+<text xml:space="preserve" text-anchor="middle" x="328.84" y="-79.27" font-family="Times,serif" font-size="14.00">mret</text>
+<text xml:space="preserve" text-anchor="middle" x="328.84" y="-62.47" font-family="Times,serif" font-size="14.00">(MPP=S)</text>
+</g>
+<!-- M&#45;&gt;M -->
+<g id="edge5" class="edge">
+<title>M-&gt;M</title>
+<path fill="none" stroke="black" d="M423.92,-61.65C422.33,-71.18 425.46,-79.87 433.31,-79.87 437.73,-79.87 440.65,-77.12 442.08,-73.02"/>
+<polygon fill="black" stroke="black" points="445.57,-73.34 442.62,-63.16 438.58,-72.96 445.57,-73.34"/>
+<text xml:space="preserve" text-anchor="middle" x="433.31" y="-84.07" font-family="Times,serif" font-size="14.00">trap</text>
+</g>
+<!-- M&#45;&gt;M -->
+<g id="edge9" class="edge">
+<title>M-&gt;M</title>
+<path fill="none" stroke="black" d="M418.03,-61.01C409.04,-78.45 414.13,-97.87 433.31,-97.87 448.6,-97.87 454.94,-85.54 452.33,-71.71"/>
+<polygon fill="black" stroke="black" points="455.7,-70.73 449.09,-62.44 449.09,-73.03 455.7,-70.73"/>
+<text xml:space="preserve" text-anchor="middle" x="433.31" y="-118.87" font-family="Times,serif" font-size="14.00">mret</text>
+<text xml:space="preserve" text-anchor="middle" x="433.31" y="-102.07" font-family="Times,serif" font-size="14.00">(MPP=M)</text>
+</g>
+</g>
+</svg>
