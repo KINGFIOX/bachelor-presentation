@@ -7,10 +7,12 @@
 		<div style="font-size: 0.74em; line-height: 1.7; margin-bottom: 0.4em;">
 			<p><strong>工具链</strong>：Chisel <span style="color:#666;">—[CIRCT]→</span> Verilog
 				<span style="color:#666;">—[Verilator]→</span> C++ 类
-				<span style="color:#666;">—[link]→</span> 仿真 binary</p>
+				<span style="color:#666;">—[link]→</span> 仿真 binary
+			</p>
 			<p><strong>差分测试原理</strong>：处理器的双层状态机模型 —— ISA 状态机（Spike 实现，软件可见）
 				vs physical 状态机（DUT 内部）。每条指令执行后 PC/mem/GPR 状态迁移；DUT 与 Spike 在每条指令后状态完全一致 ⇒
-				<span class="green">CPU 在软件程序员视角下正确</span>。</p>
+				<span class="green">CPU 在软件程序员视角下正确</span>。
+			</p>
 		</div>
 		<div class="highlight-box" style="font-size: 0.78em;">
 			以 <strong>Verilator</strong>（DUT）+ <strong>Spike</strong>（Golden Model）+ <strong>Capstone</strong>（反汇编）为基础
@@ -20,7 +22,7 @@
 		<div class="micro-arch" style="margin-top: 0.4em;">
 			<div class="ma-box">Verilator DUT</div>
 			<span class="ma-arrow">⇄</span>
-			<div class="ma-box exec">Rust DiffTest</div>
+			<div class="ma-box exec">DiffTest</div>
 			<span class="ma-arrow">⇄</span>
 			<div class="ma-box late">Spike Golden</div>
 			<span class="ma-arrow">+</span>
@@ -30,40 +32,34 @@
 		</div>
 	</section>
 
-	<!-- 3.2 Rust 重写 + 模块划分 -->
+	<!-- 9.2 C++20 重构 + 模块划分 -->
 	<section>
-		<h2>仿真平台 — Rust 重写与模块划分</h2>
-		<div style="font-size: 0.74em; line-height: 1.7; margin-bottom: 0.4em;">
-			原 C99 实现约 <strong>5600 行</strong>，随 CPU 迭代维护成本上升。使用 <strong>Rust</strong> 重构，采用
-			面向对象 / 泛型 / 函数式 / RAII 范式，代码量减少至约 <strong>2500 行</strong>，
-			可读性与可维护性显著提升（通过 <code>cloc</code> 统计验证）。
+		<h2>仿真平台 — C++20 重构与模块划分</h2>
+		<div style="font-size: 0.68em; line-height: 1.55; margin-bottom: 0.35em;">
+			平台以 <strong>C++20</strong> 开发，遵循 <strong>Google C++ Style Guide</strong>，
+			使用 <code>CMake</code> 管理构建依赖，并引入 <strong>Abseil</strong> 作为基础设施库（字符串、日志、容器等）。
 		</div>
-		<div class="two-col" style="font-size: 0.7em; gap: 0.6em;">
+		<div class="two-col" style="gap: 0.45em; font-size: 0.64em;">
 			<div>
-				<h4 style="color: #2c3e50; font-size: 0.92em;">代码树（按功能划分六个模块）</h4>
-				<pre style="margin: 0.2em 0;"><code class="language-plaintext" data-trim>
-src/rust/
-├── common      # 命令行参数 + 快照机制
-├── ffi         # Verilator/Spike/NVBoard 桥接层
-├── libcpu      # 抽象 CPU 模型（Spike + Verilator 统一接口）
-├── libdpi      # DPI-C 回调（拦截 ICache、访存等）
-├── libsdb      # 简易调试器（Flex/Bison 表达式 + 断点）
-├── tracer      # ITrace / MTrace / DTrace / FTrace
-├── lib.rs
-└── main.rs
-				</code></pre>
+				<h4 style="color: #2c3e50; font-size: 0.95em;">核心组件</h4>
+				<ul style="font-size: 0.95em; line-height: 1.55;">
+					<li><strong>ScoreBoard</strong>：提交后驱动 Spike，对比 PC/GPR/CSR ISA 状态</li>
+					<li><strong>VerilatorCpu</strong>：封装 DUT，基于 probe 导出提交与寄存器观测点</li>
+					<li><strong>Sdb</strong>：Readline + Flex/Bison，支持单步、断点、监视点、表达式求值</li>
+					<li><strong>Tracer</strong>：I/M/D/F 四类追踪，统一环形缓冲回溯</li>
+				</ul>
 			</div>
 			<div>
-				<h4 style="color: #2c3e50; font-size: 0.92em;">关键设计</h4>
-				<ul style="font-size: 0.95em;">
-					<li><strong>libcpu</strong>：抽象 trait 统一 Spike 与 Verilator 操作接口，使 DiffTest 能以同一种方式驱动两者</li>
-					<li><strong>libdpi</strong>：在 RTL 仿真中拦截 ICache 访问与外设访存，记录硬件行为</li>
-					<li><strong>libsdb</strong>：内置 Flex/Bison 表达式求值引擎，支持寄存器/内存表达式断点与监视点</li>
-					<li><strong>tracer 四类</strong>：指令、内存、设备、函数追踪，全部支持环形缓冲</li>
+				<h4 style="color: #2c3e50; font-size: 0.95em;">工程化能力</h4>
+				<ul style="font-size: 0.95em; line-height: 1.55;">
+					<li>集成 <strong>NVBoard</strong>，支持 GPIO/UART/VGA 外设可视化联调</li>
+					<li><strong>DiffTest</strong> 支持 MMIO 特殊路径（DUT 主导、参考模型跟随）</li>
 				</ul>
-				<div class="highlight-box green" style="font-size: 0.95em; margin-top: 0.3em;">
-					<strong>Rust 类型系统</strong>使桥接 C/C++ 库时 lifetime 与所有权可静态校验，
-					消除原 C 版本的指针 use-after-free 类 bug。
+				<div class="highlight-box green" style="font-size: 0.92em; margin-top: 0.25em;">
+					<strong>重构收益</strong>：在保持功能扩展速度的同时，代码结构更清晰、调试链路更稳定，
+					可支撑 DiffTest / 追踪 / 快照回放的长期迭代。借助 vibe coding，将 NVBoard 从 C99 升级为符合
+					Google C++ Style 的 C++20 代码，并支持通过 CMake 分发；同时将 Spike 的分发模式从 GNU autotools
+					重构为 CMake 分发模式，统一工具链与工程分发流程。
 				</div>
 			</div>
 		</div>
