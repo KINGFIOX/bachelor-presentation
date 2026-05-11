@@ -73,12 +73,12 @@ and Ken Thompson's Unix Version 6 (v6).
 				<div><strong>右下</strong>：PS2 键盘接收键盘输入</div>
 				<div class="highlight-box" style="font-size: 0.92em; margin-top: 0.4em;">
 					RT-Thread 验证了多任务调度、上下文切换、定时器中断驱动的任务轮转，
-					以及对自研 GPIO/PS2/VGA/UART 控制器的<strong>裸金属外设访问</strong>。
+					以及对自研 GPIO/PS2/VGA/UART 控制器的<strong> bare-metal 外设访问</strong>。
 				</div>
-				<div class="highlight-box green" style="font-size: 0.92em;">
-					<strong>双 OS 验证体系</strong>：xv6 验证特权架构 + Sv39 + 文件系统等"系统软件"链路；
-					RT-Thread 验证<strong>实时性 + 外设交互</strong>，
-					二者互补覆盖处理器全部已实现特性。
+				<div class="highlight-box green" style="font-size: 0.9em; margin-top: 0.35em;">
+					<strong>软件正确性验证策略</strong>：实现 <a href="https://github.com/KINGFIOX/nnemu" target="_blank"> Spike +
+						NVBoard 模拟器 </a> 。
+					在尽量隔离硬件实现干扰的条件下，先验证软件逻辑与外设交互；再回归到 RTL 平台闭环验证。
 				</div>
 			</div>
 		</div>

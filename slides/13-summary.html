@@ -18,8 +18,8 @@
 				<p>M/S/U 三级特权 + 异常委托 + Sv39 三级页表（TLB + PTW）+ PLIC + CLINT，为 OS 提供完整体系结构支撑</p>
 			</div>
 			<div class="grid-item" style="border-top-color: #e67e22;">
-				<h4>④ Verilator + Rust 仿真验证平台</h4>
-				<p>Rust 重写从 5600→2500 行；DiffTest 逐指令比对 + LightSSS fork 快照 + 四类 tracer + 缓存级差分；5+ 类 bug 由此定位</p>
+				<h4>④ Verilator + C++20 仿真验证平台</h4>
+				<p>DiffTest 逐指令比对 + LightSSS fork 快照 + tracer + 缓存级差分</p>
 			</div>
 			<div class="grid-item" style="border-top-color: #8e44ad;">
 				<h4>⑤ xv6 + RT-Thread 双 OS 验证</h4>
@@ -28,7 +28,7 @@
 			<div class="grid-item" style="border-top-color: #2c3e50;">
 				<h4>⑥ 量化性能评估</h4>
 				<p>RTL 寄存器 + DPI-C 事件混合性能计数器；MicroBench / Dhrystone / CoreMark 三组基准；
-					Dhrystone 1.596 DMIPS/MHz <strong>跨越 Cortex-M3 档位</strong></p>
+					Dhrystone 1.596 DMIPS/MHz ≈ Cortex-M3 </p>
 			</div>
 		</div>
 	</section>
@@ -53,13 +53,14 @@
 			<div class="timeline-item">
 				<div class="timeline-date">缓存<br/>层次</div>
 				<div class="timeline-content">
-					<strong>引入 L2 Cache</strong> 降低主存访问延迟；引入跨主设备 MESI 嗅探或 AXI4-ACE/CHI 一致性互连，替代 fence 软件方案
+					<strong>引入 L2 Cache</strong> 降低主存访问延迟；引入跨主设备 MESI 嗅探或 AXI4-ACE/CHI 一致性互连，替代 xv6 的 fence 软件方案
 				</div>
 			</div>
 			<div class="timeline-item">
 				<div class="timeline-date">执行<br/>单元</div>
 				<div class="timeline-content">
-					<strong>流水化 MUL/DIV</strong>。当前迭代式实现，吞吐受限；流水化后可显著提升 ILP
+					<strong>访存乐观执行 + Store Buffer</strong>。将 Load 前移并引入 Store Buffer，
+					在保证一致性的前提下进一步提升访存并发与整体吞吐
 				</div>
 			</div>
 			<div class="timeline-item">
