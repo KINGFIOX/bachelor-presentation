@@ -1,58 +1,62 @@
 <!-- ==================== 十、性能评估（论文第 10 章） 5 张 ==================== -->
 <section>
 
-	<!-- 9.1 实验方法 -->
+	<!-- 10.1 实验方法与计数器实现 -->
 	<section>
-		<h2>性能评估 — 实验方法</h2>
+		<h2>性能评估 — 实验方法与计数器实现</h2>
 		<div class="four-grid" style="font-size: 0.7em; gap: 0.4em; grid-template-columns: 1fr 1fr 1fr;">
 			<div class="grid-item" style="border-top-color: #2980b9;">
 				<h4>仿真环境</h4>
-				<p>Verilator + C++20 仿真平台；
-					所有被测程序以 <code>rv64im_zicsr_zifencei</code> 为目标交叉编译；
-					运行于 Abstract Machine 裸机环境</p>
+				<p>Verilator + C++20 仿真平台；目标架构 <code>rv64im_zicsr_zifencei</code>；
+					程序运行于 Abstract Machine 裸机环境（无 OS 调度）</p>
 			</div>
 			<div class="grid-item" style="border-top-color: #e67e22;">
 				<h4>计数器架构</h4>
-				<p><strong>RTL 寄存器 + DPI-C 事件</strong>混合：commit/branch/分类计数在 RTL 内 RegInit 累加；
-					缓存与 IFU 事件通过 <code>npc_perf_event(id)</code> DPI-C 累加</p>
+				<p>提交/分支/缓存/IFU 事件统一通过 <strong>DPI-C PerfEvent</strong> 导出，
+					C++ 侧 <code>PerfCounters</code> 聚合计数，观测逻辑与主流水线解耦</p>
 			</div>
 			<div class="grid-item" style="border-top-color: #27ae60;">
 				<h4>基准压缩</h4>
-				<p>RTL 仿真约 0.1 MIPS，需压缩规模才可在实验时间内完成；
-					不改变指令混合特征</p>
+				<p>RTL 仿真约 0.1 MIPS，采用缩规模保持可迭代实验时长；
+					指令混合特征与访存模式保持代表性</p>
 			</div>
 		</div>
 		<div style="margin-top: 0.4em; font-size: 0.7em;">
 			<table class="compact-table">
 				<thead>
-					<tr><th>基准</th><th>规模</th><th>说明</th></tr>
+					<tr>
+						<th>基准</th>
+						<th>规模</th>
+						<th>说明</th>
+					</tr>
 				</thead>
 				<tbody>
 					<tr>
 						<td><strong>MicroBench</strong></td>
-						<td><code>test</code> 规模</td>
-						<td>30+ 子测试；约 300K 动态指令；覆盖整数、排序、字符串、位操作</td>
+						<td><code>train</code></td>
+						<td>动态指令约 73M，覆盖排序/搜索/压缩/哈希等异构负载</td>
 					</tr>
 					<tr>
 						<td><strong>Dhrystone</strong></td>
-						<td>2 000 轮</td>
-						<td>Weicker 1984 经典综合整数基准；保留循环结构完整性</td>
+						<td>140,000 iter</td>
+						<td>经典系统编程整数基准，动态指令规模与 MicroBench train 同量级</td>
 					</tr>
 					<tr>
 						<td><strong>CoreMark</strong></td>
-						<td>20 iterations</td>
-						<td>EEMBC 工业标准基准；链表 / 矩阵乘法 / 状态机三类核心算法</td>
+						<td>200 iter</td>
+						<td>EEMBC 工业标准基准，链表/矩阵/状态机三类核心算法</td>
 					</tr>
 				</tbody>
 			</table>
 		</div>
-		<div style="background: #f8f9fa; padding: 0.4em 0.8em; border-radius: 6px; margin-top: 0.4em; font-size: 0.7em;">
+		<div
+			style="background: #f8f9fa; padding: 0.4em 0.8em; border-radius: 6px; margin-top: 0.4em; font-size: 0.7em;">
 			<strong>核心指标</strong>：IPC = 已提交指令 / 总周期；Branch Hit = 正确预测控制流 / 控制流总数；
 			AMAT = <code>1 + 缺失周期 / 访问次数</code>；IFU Stall = 未输出有效指令周期 / 总周期。
 		</div>
 	</section>
 
-	<!-- 9.2 总体性能 + stat-number -->
+	<!-- 10.2 总体性能 -->
 	<section>
 		<h2>性能评估 — 总体性能</h2>
 		<table class="compact-table" style="font-size: 0.72em; margin-bottom: 0.4em;">
@@ -66,18 +70,36 @@
 				</tr>
 			</thead>
 			<tbody>
-				<tr><td>MicroBench (test)</td><td>1 094 005</td><td>468 574</td><td><strong>0.4283</strong></td><td>2.33</td></tr>
-				<tr><td>Dhrystone (2 000)</td><td>2 201 801</td><td>970 242</td><td><strong>0.4407</strong></td><td>2.27</td></tr>
-				<tr><td>CoreMark (20 iter)</td><td>12 983 050</td><td>7 257 139</td><td><strong>0.5590</strong></td><td>1.79</td></tr>
+				<tr>
+					<td>MicroBench (train)</td>
+					<td>155 612 739</td>
+					<td>73 354 577</td>
+					<td><strong>0.4714</strong></td>
+					<td>2.12</td>
+				</tr>
+				<tr>
+					<td>Dhrystone</td>
+					<td>142 530 258</td>
+					<td>64 453 461</td>
+					<td><strong>0.4522</strong></td>
+					<td>2.21</td>
+				</tr>
+				<tr>
+					<td>CoreMark (200 iter)</td>
+					<td>129 901 647</td>
+					<td>71 795 820</td>
+					<td><strong>0.5527</strong></td>
+					<td>1.81</td>
+				</tr>
 			</tbody>
 		</table>
 		<div class="perf-grid">
 			<div class="perf-card">
-				<div class="perf-num">0.43&ndash;0.56</div>
+				<div class="perf-num">0.45&ndash;0.55</div>
 				<div class="perf-label">IPC（按负载分层）</div>
 			</div>
 			<div class="perf-card green">
-				<div class="perf-num">1.596</div>
+				<div class="perf-num">0.559</div>
 				<div class="perf-label">Dhrystone DMIPS/MHz</div>
 			</div>
 			<div class="perf-card orange">
@@ -85,65 +107,80 @@
 				<div class="perf-label">CoreMark CoreMark/MHz</div>
 			</div>
 			<div class="perf-card purple">
-				<div class="perf-num">0.89</div>
+				<div class="perf-num">0.88&ndash;0.91</div>
 				<div class="perf-label">commit / ifu_deliver</div>
 			</div>
 		</div>
 		<div class="highlight-box green" style="font-size: 0.72em;">
-			<strong>对照</strong>：ARM Cortex-M0 ≈ 0.84 DMIPS/MHz · M3 ≈ 1.25 · A9 ≈ 2.50；
-			本实现 <strong>Dhrystone 1.596 DMIPS/MHz 已跨越 Cortex-M3 档位</strong>，
-			达到教学级 RISC-V 乱序实现的主流水平。<code>commit/ifu_deliver ≈ 0.89</code>
-			说明前后端共同构成瓶颈。
+			<strong>结论</strong>：CoreMark IPC 最高（0.5527），主要受益于高 ICache 命中与长直线代码段；
+			三组负载 <code>commit/ifu_deliver</code> 维持在 0.88&ndash;0.91，说明误预测/flush 仍是主要损耗来源。
 		</div>
 	</section>
 
-	<!-- 9.3 前端事件分解 -->
+	<!-- 10.3 前端事件分析 -->
 	<section>
-		<h2>性能评估 — 前端事件分解</h2>
+		<h2>性能评估 — 前端事件分析</h2>
 		<table class="compact-table" style="font-size: 0.72em;">
 			<thead>
 				<tr>
 					<th>基准</th>
-					<th>fe_redirect branch</th>
-					<th>F1 TLB miss</th>
+					<th>IFU deliver Inst.</th>
+					<th>IFU stall Cyc.</th>
 					<th>F2 ICache wait</th>
 					<th>Fp resp wait</th>
 				</tr>
 			</thead>
 			<tbody>
-				<tr><td>MicroBench (test)</td><td>70 195</td><td>0</td><td><strong>182 963</strong></td><td>5 970</td></tr>
-				<tr><td>Dhrystone (2 000)</td><td>161 648</td><td>0</td><td><strong>403 268</strong></td><td>1 825</td></tr>
-				<tr><td>CoreMark (20 iter)</td><td>856 609</td><td>0</td><td><strong>1 187 045</strong></td><td>3 996</td></tr>
+				<tr>
+					<td>MicroBench (train)</td>
+					<td>83 659 693</td>
+					<td>49 889 859</td>
+					<td><strong>20 745 873</strong></td>
+					<td>6 818</td>
+				</tr>
+				<tr>
+					<td>Dhrystone</td>
+					<td>70 759 218</td>
+					<td>58 294 840</td>
+					<td><strong>15 433 031</strong></td>
+					<td>1 933</td>
+				</tr>
+				<tr>
+					<td>CoreMark (200 iter)</td>
+					<td>79 038 883</td>
+					<td>44 685 323</td>
+					<td><strong>4 754 811</strong></td>
+					<td>4 041</td>
+				</tr>
 			</tbody>
 		</table>
 		<div class="four-grid" style="grid-template-columns: 1fr 1fr; font-size: 0.7em; gap: 0.4em; margin-top: 0.4em;">
 			<div class="grid-item" style="border-top-color: #c0392b;">
 				<h4>F2 ICache wait 是首要前端停顿源</h4>
-				<p>CoreMark 中约 1.19M 周期，<strong>占总周期 ~9%</strong>；
-					前端剩余性能受制于<strong>缓存与主存带宽</strong>，而非流水结构本身</p>
+				<p>MicroBench / Dhrystone / CoreMark 分别为 20.7M / 15.4M / 4.75M 周期；
+					前端瓶颈主要来自缓存访存等待</p>
 			</div>
 			<div class="grid-item" style="border-top-color: #27ae60;">
-				<h4>fe_redirect branch = taken 分支数</h4>
-				<p>已去除所有 fence.i 粘滞通道，
-					serializing 指令折算到 flush 次数，
-					<span class="green">不再占用前端计数事件</span></p>
+				<h4>IFU Stall 比例较高</h4>
+				<p>三组负载 IFU Stall 比例约 32.06% / 40.90% / 34.40%，
+					停顿并非仅由预测误差引起，缓存等待占主导</p>
 			</div>
 			<div class="grid-item" style="border-top-color: #2980b9;">
 				<h4>Fp 几乎吸收所有响应延迟</h4>
-				<p>Fp resp wait 都不到 6 000 周期，
-					深度 4 环形 FIFO 充分覆盖了 ICache 的访问延迟</p>
+				<p>Fp 响应等待仅千级（最高 6,818），
+					说明 in-flight 缓冲能有效覆盖大多数 cache 返回延迟</p>
 			</div>
 			<div class="grid-item" style="border-top-color: #e67e22;">
-				<h4>DCache 抖动可见</h4>
-				<p>MicroBench 的 Fp 等待显著高于 D/C，
-					与 DCache 命中率偏低相符 → 数据缺失反压间接影响取指</p>
+				<h4>Sv39 关闭场景下 F1 无 TLB miss</h4>
+				<p>本实验裸机运行、未开启页表，F1 TLB miss 可视为 0，
+					前端耗时主要集中在 F2/Fp 路径</p>
 			</div>
 		</div>
 	</section>
 
-	<!-- 9.4 分支预测命中率 -->
+	<!-- 10.4 分支预测性能 -->
 	<section>
-		<h2>性能评估 — 分支预测命中率</h2>
+		<h2>性能评估 — 分支预测性能分析</h2>
 		<table class="compact-table" style="font-size: 0.72em;">
 			<thead>
 				<tr>
@@ -151,34 +188,46 @@
 					<th>控制流指令数</th>
 					<th>误预测数</th>
 					<th>命中率</th>
-					<th>流水线 flush</th>
 				</tr>
 			</thead>
 			<tbody>
-				<tr><td>MicroBench (test)</td><td>90 622</td><td>11 637</td><td><strong>87.16%</strong></td><td>11 640</td></tr>
-				<tr><td>Dhrystone (2 000)</td><td>196 578</td><td>10 535</td><td class="green"><strong>94.64%</strong></td><td>10 538</td></tr>
-				<tr><td>CoreMark (20 iter)</td><td>1 234 267</td><td>77 716</td><td><strong>93.70%</strong></td><td>77 719</td></tr>
+				<tr>
+					<td>MicroBench (train)</td>
+					<td>11 282 371</td>
+					<td>1 018 777</td>
+					<td><strong>90.97%</strong></td>
+				</tr>
+				<tr>
+					<td>Dhrystone</td>
+					<td>13 031 054</td>
+					<td>420 686</td>
+					<td class="green"><strong>96.77%</strong></td>
+				</tr>
+				<tr>
+					<td>CoreMark (200 iter)</td>
+					<td>12 198 756</td>
+					<td>717 443</td>
+					<td><strong>94.12%</strong></td>
+				</tr>
 			</tbody>
 		</table>
 		<div class="two-col" style="font-size: 0.7em; gap: 0.5em; margin-top: 0.4em;">
 			<div>
 				<h4 style="color: #2c3e50; font-size: 0.95em;">命中率分层 = 控制流复杂度</h4>
 				<ul style="font-size: 0.95em;">
-					<li><strong>Dhrystone 94.64%</strong>：紧凑 for 循环回跳 + 固定方向分支为主，GShare 历史寄存器易于收敛</li>
-					<li><strong>CoreMark 93.70%</strong>：链表/矩阵搜索/状态机，全局历史相关性强</li>
-					<li><strong>MicroBench 87.16%</strong>：30+ 子测试，跨模块分支缺乏相关性，PHT 尚未收敛即进入下一个测试</li>
+					<li><strong>Dhrystone 96.77%</strong>：循环结构规则，方向稳定，GShare 易收敛</li>
+					<li><strong>CoreMark 94.12%</strong>：链表/矩阵/状态机混合，仍保持较高全局历史相关性</li>
+					<li><strong>MicroBench 90.97%</strong>：异构子测试切换频繁，预测器状态抖动更明显</li>
 				</ul>
 			</div>
-			<div class="highlight-box green" style="font-size: 0.78em;">
-				<strong>"一次误预测 ⇒ 一次冲刷" 严格成立</strong>：
-				流水线 flush 与误预测仅差 3，未出现因前端状态残留导致的多余 flush。
-				印证了<strong>提交点更新策略</strong>能有效避免投机路径污染预测器。
-				MicroBench 的 87% 与 GShare 在 SPEC2006 整数子集上 88–92% 的水平相当。
+			<div class="highlight-box green">
+				<strong>结论</strong>：GShare + IJTC + RAS 在三组负载上命中率均超过 90%，
+				其中 Dhrystone 接近 97%。整体表现与同类 GShare 方案预期区间一致，
 			</div>
 		</div>
 	</section>
 
-	<!-- 9.5 缓存命中率 -->
+	<!-- 10.5 缓存子系统 + 工业指标 -->
 	<section>
 		<h2>性能评估 — 缓存命中率与 AMAT</h2>
 		<div class="two-col" style="gap: 0.4em;">
@@ -186,12 +235,36 @@
 				<h4 style="color: #2c3e50; font-size: 0.85em;">ICache</h4>
 				<table class="compact-table" style="font-size: 0.75em;">
 					<thead>
-						<tr><th>基准</th><th>访问</th><th>缺失</th><th>命中率</th><th>AMAT</th></tr>
+						<tr>
+							<th>基准</th>
+							<th>访问</th>
+							<th>缺失</th>
+							<th>命中率</th>
+							<th>AMAT</th>
+						</tr>
 					</thead>
 					<tbody>
-						<tr><td>MicroBench</td><td>601 562</td><td>393</td><td>99.93%</td><td>1.012</td></tr>
-						<tr><td>Dhrystone</td><td>1 211 822</td><td>103</td><td>99.99%</td><td>1.002</td></tr>
-						<tr><td>CoreMark</td><td>9 943 597</td><td>258</td><td><strong>99.997%</strong></td><td><strong>1.001</strong></td></tr>
+						<tr>
+							<td>MicroBench</td>
+							<td>115 033 542</td>
+							<td>489</td>
+							<td>99.9996%</td>
+							<td>1.0001</td>
+						</tr>
+						<tr>
+							<td>Dhrystone</td>
+							<td>105 516 146</td>
+							<td>115</td>
+							<td>99.9999%</td>
+							<td>1.0000</td>
+						</tr>
+						<tr>
+							<td>CoreMark</td>
+							<td>107 236 775</td>
+							<td>265</td>
+							<td><strong>99.9998%</strong></td>
+							<td><strong>1.0000</strong></td>
+						</tr>
 					</tbody>
 				</table>
 			</div>
@@ -199,12 +272,36 @@
 				<h4 style="color: #2c3e50; font-size: 0.85em;">DCache</h4>
 				<table class="compact-table" style="font-size: 0.75em;">
 					<thead>
-						<tr><th>基准</th><th>访问</th><th>缺失</th><th>命中率</th><th>AMAT</th></tr>
+						<tr>
+							<th>基准</th>
+							<th>访问</th>
+							<th>缺失</th>
+							<th>命中率</th>
+							<th>AMAT</th>
+						</tr>
 					</thead>
 					<tbody>
-						<tr><td>MicroBench</td><td>124 586</td><td>3 082</td><td>97.53%</td><td><strong>1.751</strong></td></tr>
-						<tr><td>Dhrystone</td><td>360 917</td><td>869</td><td>99.76%</td><td>1.077</td></tr>
-						<tr><td>CoreMark</td><td>1 526 149</td><td>1 025</td><td><strong>99.93%</strong></td><td>1.023</td></tr>
+						<tr>
+							<td>MicroBench</td>
+							<td>17 183 497</td>
+							<td>537 411</td>
+							<td>96.87%</td>
+							<td><strong>1.6615</strong></td>
+						</tr>
+						<tr>
+							<td>Dhrystone</td>
+							<td>24 096 978</td>
+							<td>868</td>
+							<td>99.9964%</td>
+							<td>1.0012</td>
+						</tr>
+						<tr>
+							<td>CoreMark</td>
+							<td>15 032 419</td>
+							<td>1 025</td>
+							<td><strong>99.9932%</strong></td>
+							<td>1.0024</td>
+						</tr>
 					</tbody>
 				</table>
 			</div>
@@ -217,14 +314,59 @@
 			</div>
 			<div class="grid-item" style="border-top-color: #e67e22;">
 				<h4>DCache MicroBench 偏低</h4>
-				<p>子测试间数据集切换频繁，强制性缺失（compulsory miss）占比高；
-					qsort/dinic/matrix 大数组超 4 KB 单路容量</p>
+				<p>MicroBench 多个子测试工作集远超 4 KiB，容量缺失/冲突缺失显著，
+					命中率降至 96.87%</p>
 			</div>
 		</div>
 		<div class="highlight-box green" style="font-size: 0.78em;">
-			<strong>结论</strong>：DCache 平均缺失代价 30–34 周期高于 ICache（19–21 周期），源于 write-back 多一次往返；
-			但即使最差情形 AMAT = <strong>1.751 周期</strong>，
-			<span class="green">缓存子系统平均开销可忽略，不是当前实现的性能瓶颈</span>。
+			<strong>缓存结论</strong>：DCache 在 MicroBench 下受工作集容量限制（96.87%），
+			但整体 AMAT 仍在低区间，当前性能短板主要仍是稳态 IPC 与前端停顿，而非缓存平均开销。
+		</div>
+	</section>
+
+	<section>
+		<h2>性能评估 — 工业指标与计算公式</h2>
+		<div class="two-col" style="gap: 0.55em;">
+			<div style="font-size: 0.72em;">
+				<table class="compact-table" style="font-size: 0.9em;">
+					<thead>
+						<tr>
+							<th>处理器</th>
+							<th>DMIPS/MHz</th>
+							<th>CoreMark/MHz</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td><strong>本设计</strong></td>
+							<td><strong>0.559</strong></td>
+							<td><strong>1.540</strong></td>
+						</tr>
+						<tr>
+							<td>Cortex-M0</td>
+							<td>0.84</td>
+							<td>2.33</td>
+						</tr>
+						<tr>
+							<td>OpenLA500</td>
+							<td>0.78</td>
+							<td>2.75</td>
+						</tr>
+					</tbody>
+				</table>
+				<div class="highlight-box green" style="font-size: 0.92em; margin-top: 0.35em;">
+					<strong>本设计实测</strong>：
+					<br>
+					Dhrystone = <strong>0.559 DMIPS/MHz</strong>，
+					<br>
+					CoreMark = <strong>1.540 CoreMark/MHz</strong>。
+				</div>
+			</div>
+			<div style="font-size: 0.68em; line-height: 1.65;">
+				<h4 style="color: #2c3e50; font-size: 0.95em;">DMIPS / CoreMark 计算公式</h4>
+				<img src="/perf-formula.png" alt="DMIPS 与 CoreMark 公式"
+					style="max-width: 100%; max-height: 300px; border-radius: 6px; border: 1px solid #ddd;" />
+			</div>
 		</div>
 	</section>
 

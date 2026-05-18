@@ -122,7 +122,7 @@
 		</div>
 		<div>
 			<img src="/plic-single-irq-fsm.png" alt="PLIC 单中断源状态机" />
-			<p class="small center">PLIC 单中断源网关状态机：pending / claimed / complete</p>
+			<p class="small center">PLIC 单中断源状态机：pending / claimed / complete</p>
 		</div>
 	</section>
 
@@ -138,7 +138,7 @@
 				<h4 style="color: #2c3e50; font-size: 0.95em;">虚拟地址布局</h4>
 				<p>Sv39：<strong>9+9+9 三级页号</strong> + 12 位页内偏移 → 44 位 PPN；
 					<code>satp.MODE = 8</code> 启用，<code>satp.PPN</code> 指向根页表物理基址；
-					为了简单期间，暂不实现 huge page
+					简单起见，暂不实现 huge page
 				</p>
 				<h4 style="color: #2c3e50; font-size: 0.95em;">TLB 设计</h4>
 				<ul style="font-size: 0.95em;">
@@ -149,7 +149,7 @@
 				<h4 style="color: #2c3e50; font-size: 0.95em;">IFU / LSU 各一套独立 MMU</h4>
 				<ul style="font-size: 0.95em;">
 					<li>结构完全相同，仅权限位不同：IFU 检 <code>PTE.X</code>，LSU 检 <code>PTE.R/PTE.W</code></li>
-					<li>"乐观路径先查 TLB，悲观路径回退到 PTW" → <span class="green">TLB 命中无额外延迟</span></li>
+					<li>"乐观路径先查 TLB，悲观路径回退到 PTW"</li>
 				</ul>
 			</div>
 		</div>
