@@ -4,30 +4,17 @@
 	<!-- 5.1 IFU 4 段流水 -->
 	<section>
 		<h2>前端 — IFU 流水化（F0/F1/F2+Fp/F3）</h2>
-		<div style="display: flex; flex-direction: column; gap: 0.45em;">
+		<div class="two-col" style="gap: 0.45em; align-items: start;">
 			<div class="center">
-				<img src="public/ifu-pipeline.drawio.png" alt="IFU 4 段流水"
-					style="max-width: 96%; max-height: 300px; border-radius: 6px; border: 1px solid #ddd;" />
+				<img src="/ifu-pipeline.png" alt="IFU 4 段流水" />
 			</div>
-			<div style="font-size: 0.7em;">
-				<div class="four-grid" style="grid-template-columns: 1fr 1fr; gap: 0.35em;">
-					<div class="grid-item" style="border-top-color: #2980b9;">
-						<h4>F0：PC 投机推进</h4>
-						<p>每拍假设 <code>pc_q + 4</code>；taken 分支由 F3 自重定向回卷</p>
-					</div>
-					<div class="grid-item" style="border-top-color: #e67e22;">
-						<h4>F1：MMU 地址翻译</h4>
-						<p>16 项全相联 iTLB + PTW(page table walker) 子 FSM</p>
-					</div>
-					<div class="grid-item" style="border-top-color: #27ae60;">
-						<h4>F2 + Fp：ICache 控制</h4>
-						<p>F2 驱动请求；Fp 深度 4 环形 FIFO 追踪 in-flight 响应</p>
-					</div>
-					<div class="grid-item" style="border-top-color: #8e44ad;">
-						<h4>F3：预测 + 后端交付</h4>
-						<p>输出 32-bit 指令；驱动 Predict；生成 <code>fe_take_branch</code></p>
-					</div>
-				</div>
+			<div>
+				<ul>
+					<li><strong>F0：PC 投机推进</strong>：每拍假设 <code>pc_q + 4</code>；taken 分支由 F3 自重定向回卷</li>
+					<li><strong>F1：MMU 地址翻译</strong>：16 项全相联 iTLB + PTW(page table walker) 子 FSM</li>
+					<li><strong>F2 + Fp：ICache 控制</strong>：F2 驱动请求；Fp 深度 4 环形 FIFO 追踪 in-flight 响应</li>
+					<li><strong>F3：预测 + 后端交付</strong>：输出 32-bit 指令；驱动 Predict；生成 <code>fe_take_branch</code></li>
+				</ul>
 			</div>
 		</div>
 	</section>
@@ -37,22 +24,13 @@
 		<h2>F1 PTW 子 FSM（squash 安全设计）</h2>
 		<div class="two-col-3-2" style="gap: 0.5em;">
 			<div>
-				<pre class="mermaid">
-stateDiagram-v2
-  idle --> req: tlb_miss
-  req --> waitResp: ptw.req.fire(latch vpn)
-  waitResp --> idle: ptw.resp.valid(refill iTLB if !abandoned ∧ vpn match)
-  req --> drain: squash ∧ going inflight
-  waitResp --> drain: squash ∧ no resp yet
-  drain --> idle: ptw.resp.valid(drop silently)
-  req --> idle: squash ∧ !going inflight
-  waitResp --> idle: squash ∧ resp arriving
-</pre>
+				<img src="/ifu-ptw-fsm.png" alt="IFU PTW 子 FSM" />
+				<p class="small center">F1 PTW 子状态机：idle / req / waitResp / drain</p>
 			</div>
 			<div style="font-size: 0.7em; line-height: 1.65;">
 				<h4 style="color: #2c3e50; font-size: 0.95em;">squash 与 drain 的必要性</h4>
 				<p>前端在“识别一条指令”之前，必须先完成两步：<strong>先地址翻译</strong>，再<strong>按物理地址取指</strong>。
-					因此我把相关流程拆成多个阶段：F1 负责 MMU/PTW，F2 负责 ICache 访问，F3 再进行指令切分与解码前处理。</p>
+					因此我把相关流程拆成多个阶段：F1 负责 MMU/PTW，F2 负责 ICache 访问，F3 负责指令预解码、分支预测、交付后端。</p>
 				<ul>
 					<li>waitResp: 等待 ptw 响应，将要得到的物理地址有效</li>
 					<li>drain: 等待 ptw 响应，但是将要得到的物理地址无效</li>
@@ -66,12 +44,16 @@ stateDiagram-v2
 	<!-- 5.3 分支预测：GShare + IJTC + RAS -->
 	<section>
 		<h2>F3 分支预测：GShare + IJTC + RAS</h2>
-		<div class="two-col" style="gap: 0.5em;">
-			<div>
-				<img src="public/gshare-xor.png" style="max-width: 92%; max-height: 200px;" />
-				<p class="small center">GShare</p>
-				<img src="public/ras-stack.png" style="max-width: 92%; max-height: 180px;" />
-				<p class="small center">RAS</p>
+		<div class="two-col" >
+			<div style="display: flex; flex-direction: column; gap: 0.35em;">
+				<div class="center">
+					<img src="/gshare-xor.png" style="max-width: 92%; max-height: 190px;" />
+					<p class="small center">GShare</p>
+				</div>
+				<div class="center">
+					<img src="/ras-stack.png" style="max-width: 92%; max-height: 170px;" />
+					<p class="small center">RAS</p>
+				</div>
 			</div>
 			<div style="font-size: 0.68em;">
 				<table class="compact-table" style="font-size: 0.95em; margin: 0;">

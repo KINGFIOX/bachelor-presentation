@@ -121,17 +121,8 @@
 			再触发中断 trap；中断 epc 设为<strong>下一条 PC</strong>，使中断返回后从正确位置继续。
 		</div>
 		<div>
-			<pre class="mermaid">
-stateDiagram-v2
-  idle --> pending: source=1 ∧ !claimed
-  pending --> pending: source=1 (level hold)
-  pending --> claimed: claim(best_irq)
-  claimed --> claimed: source=1 (masked by claimed_eff)
-  claimed --> pending: complete ∧ source=1
-  claimed --> idle: complete ∧ source=0
-  pending --> idle: source=0 (edge withdrawn)
-				</pre>
-			<p class="small center">PLIC(platform level interrupt controller) 中单个中断源状态：pending / claimed / complete</p>
+			<img src="/plic-single-irq-fsm.png" alt="PLIC 单中断源状态机" />
+			<p class="small center">PLIC 单中断源网关状态机：pending / claimed / complete</p>
 		</div>
 	</section>
 
@@ -140,8 +131,7 @@ stateDiagram-v2
 		<h2>特权架构 — Sv39 虚拟内存 (TLB + PTW)</h2>
 		<div class="two-col" style="gap: 0.5em;">
 			<div>
-				<img src="public/ptw-fsm.drawio.png" alt="PTW 9 态状态机"
-					style="max-width: 100%; max-height: 380px; border-radius: 6px; border: 1px solid #ddd;" />
+				<img src="/ptw-fsm.png" alt="PTW 9 态状态机" />
 				<p class="small center">PTW 9 态状态机：依次访问 L2 / L1 / L0 PTE</p>
 			</div>
 			<div style="font-size: 0.7em; line-height: 1.65;">

@@ -6,8 +6,36 @@
 		<h2>Flash 控制器与 XIP 机制</h2>
 		<div class="two-col">
 			<div>
-				<img src="public/xip-fsm.drawio.png" alt="XIP FSM" style="max-width: 70%;" />
-				<p class="small center">APB XIP 控制器状态转移图（8 态）</p>
+				<div>
+					<pre style="margin: 0.15em 0;"><code class="language-c" data-trim style="font-size: 0.55em; line-height: 1.35;">
+void spi_wait_done(void) {
+  while (REG32(SPI_CTRL) &amp; SPI_CTRL_GO)
+    ;
+}
+void flash_select(void) { REG32(SPI_SS) = FLASH_SS; }
+void flash_deselect(void) { REG32(SPI_SS) = 0; }
+
+// [ 0, cmd, addr, data ]
+// high                low
+// Tx3                 Tx0
+// Rxx 与 Txx 其实是同一个寄存器
+uint32_t flash_read_word(uint32_t addr) {
+  flash_select();
+  REG32(SPI_TX1) = (FLASH_CMD_READ &lt;&lt; 24) | (addr &amp; 0x00FFFFFF);
+  REG32(SPI_TX0) = 0;
+  REG32(SPI_CTRL) = SPI_CTRL_CHAR_LEN(64) | SPI_CTRL_ASS
+                  | SPI_CTRL_GO;
+  spi_wait_done();
+  uint32_t data = REG32(SPI_RX0);
+  flash_deselect();
+  return data;
+}
+					</code></pre>
+				</div>
+				<div>
+					<img src="/xip-fsm.png" alt="XIP FSM" />
+					<p class="small center">APB XIP 控制器状态转移图（8 态）</p>
+				</div>
 			</div>
 			<div style="font-size: 0.78em; line-height: 1.7;">
 				<p><strong>Flash 双访问模式</strong>：</p>
@@ -21,6 +49,7 @@
 				</div>
 				<p class="small">基于 Winbond W25Q128JVSIQ 手册时序，实现行为级仿真模型并经类 UVM 验证，<span
 						class="green">协议正确性可对接物理芯片</span>。</p>
+				<p>这里的 setup 和 access 分别对应的 apb 接口的时序要求: psel 与 penable 要相差一个周期</p>
 			</div>
 		</div>
 	</section>
@@ -58,8 +87,7 @@
 			<div>
 				<div style="font-size: 0.7em;">
 					<h4 style="color: #2c3e50; font-size: 0.95em;">QSPI Master 结构与信号关系</h4>
-					<img src="public/psram.png" alt="PSRAM QSPI Master 结构图" style="max-width: 100%; max-height: 390px;" />
-					<p class="small center">中期报告中的 QSPI Master 模块连接图（FSM / Clgen / Shift）</p>
+					<img src="/qspi-arch.png" alt="PSRAM QSPI Master 结构图" />
 				</div>
 				<div>
 					<div class="highlight-box green" style="font-size: 0.92em; margin-top: 0.5em;">
@@ -79,8 +107,7 @@
 		<h2>SDRAM 控制器：Chisel 完整重写 + 字位扩展</h2>
 		<div class="two-col" style="gap: 0.5em;">
 			<div>
-				<img src="public/sdram.png" alt="SDRAM 字位扩展与事务桥结构图"
-					style="max-width: 100%; max-height: 380px; border-radius: 6px; border: 1px solid #ddd;" />
+				<img src="/sdram-interleave.png" alt="SDRAM 字位扩展与事务桥结构图" />
 			</div>
 			<div style="font-size: 0.7em; line-height: 1.7;">
 				<p>控制器支持<strong>位扩展</strong>与<strong>字扩展</strong>两种组织方式。位扩展模式下，两颗 SDRAM 芯片与同一个
@@ -99,9 +126,7 @@
 		<h2>SDRAM 控制器的重写思路</h2>
 		<div class="two-col" style="gap: 0.5em;">
 			<div>
-				<img src="public/sdram-tb.png" alt="SDRAM AXI4 测试平台"
-					style="max-width: 100%; max-height: 380px; border-radius: 6px; border: 1px solid #ddd;" />
-				<p class="small center">SystemC UVM 测试平台（基于 ultraembedded 重构）</p>
+				<img src="/sdram-testbench.png" alt="SDRAM AXI4 测试平台" />
 			</div>
 			<div style="font-size: 0.7em; line-height: 1.7;">
 				<p>Fork <a href="https://github.com/ultraembedded/core_sdram_axi4"

@@ -15,7 +15,7 @@
 			</p>
 		</div>
 		<div class="highlight-box" style="font-size: 0.78em;">
-			以 <strong>Verilator</strong>（DUT）+ <strong>Spike</strong>（Golden Model）+ <strong>Capstone</strong>（反汇编）为基础
+			以 <strong>Verilator</strong>（DUT）+ <strong>Spike</strong>（Golden Model）为基础
 			构建逐指令差分测试平台；结合 <strong>NVBoard</strong> 完成外设可视化联调，
 			扩展为"指令级 + 系统级"双层验证体系。均以静态库形式链接到仿真 binary。
 		</div>
@@ -25,8 +25,6 @@
 			<div class="ma-box exec">DiffTest</div>
 			<span class="ma-arrow">⇄</span>
 			<div class="ma-box late">Spike Golden</div>
-			<span class="ma-arrow">+</span>
-			<div class="ma-box ctrl">Capstone 反汇编</div>
 			<span class="ma-arrow">+</span>
 			<div class="ma-box">NVBoard 外设</div>
 		</div>
@@ -56,8 +54,7 @@
 					<li><strong>DiffTest</strong> 支持 MMIO 特殊路径（DUT 主导、参考模型跟随）</li>
 				</ul>
 				<div class="highlight-box green" style="font-size: 0.92em; margin-top: 0.25em;">
-					<strong>重构收益</strong>：在保持功能扩展速度的同时，代码结构更清晰、调试链路更稳定，
-					可支撑 DiffTest / 追踪 / 快照回放的长期迭代。借助 vibe coding，将 NVBoard 从 C99 升级为符合
+					借助 vibe coding，将 NVBoard 从 C99 升级为符合
 					Google C++ Style 的 C++20 代码，并支持通过 CMake 分发；同时将 Spike 的分发模式从 GNU autotools
 					重构为 CMake 分发模式，统一工具链与工程分发流程。
 				</div>
@@ -70,8 +67,7 @@
 		<h2>仿真平台 — LightSSS 快照回放 &amp; DiffTest</h2>
 		<div class="two-col" style="gap: 0.6em;">
 			<div>
-				<img src="public/lightsss.png" alt="LightSSS"
-					style="max-width: 100%; max-height: 360px; border-radius: 6px; border: 1px solid #ddd;" />
+				<img src="/lightsss.png" alt="LightSSS" />
 				<p class="small center">环形缓冲区快照机制（基于 fork）</p>
 			</div>
 			<div style="font-size: 0.72em; line-height: 1.7;">

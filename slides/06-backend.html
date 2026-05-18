@@ -4,18 +4,23 @@
 	<!-- 6.1 后端总览 -->
 	<section>
 		<h2>后端 — 乱序执行引擎总览</h2>
-		<div class="center">
-			<img src="public/backend-arch.drawio.png" style="max-width: 85%; max-height: 420px;" />
-		</div>
-		<div class="highlight-box" style="font-size: 0.62em; margin-top: 0.4em;">
-			<strong>RV64IM</strong>，五条独立执行路径：
-			<span class="pipeline-box">ALU</span>
-			<span class="pipeline-box">MDU</span>
-			<span class="pipeline-box">BRU</span>
-			<span class="pipeline-box orange-bg">LSU (late)</span>
-			<span class="pipeline-box orange-bg">CSRU (late)</span>
-			<br>
-			流水线：<strong>译码 -> 重命名 -> 分派 -> 发射 -> 执行 -> 写回 -> (晚执行) -> 提交</strong>
+		<div class="two-col">
+			<div class="center">
+				<img src="/backend-arch.png" />
+			</div>
+			<div>
+				<div class="highlight-box">
+					<strong>RV64IM</strong>，五条独立执行路径：
+					<span class="pipeline-box">ALU</span>
+					<span class="pipeline-box">MDU</span>
+					<span class="pipeline-box">BRU</span>
+					<span class="pipeline-box orange-bg">LSU (late)</span>
+					<span class="pipeline-box orange-bg">CSRU (late)</span>
+				</div>
+				<div class="highlight-box green" >
+					流水线：<strong>译码 -> 重命名 -> 分派 -> 发射 -> 执行 -> 写回 -> (晚执行) -> 提交</strong>
+				</div>
+			</div>
 		</div>
 	</section>
 
@@ -137,20 +142,8 @@ abstract class IssueQueue[T &lt;: Data](
 		<div class="two-col-3-2" style="gap: 0.5em;">
 			<div>
 				<div>
-					<pre class="mermaid">
-						stateDiagram-v2
-						  idle --> tlb_check: Sv39 on
-						  idle --> lsu_req: Sv39 off
-						  tlb_check --> lsu_req: TLB hit ∧ access ok
-						  tlb_check --> idle: page fault
-						  tlb_check --> ptw_req: TLB miss
-						  ptw_req --> ptw_wait: PTW fire
-						  ptw_wait --> idle: PTW fault
-						  ptw_wait --> tlb_check: PTW done(refill dTLB)
-						  lsu_req --> lsu_wait: ack ∧ !done
-						  lsu_req --> idle: ack ∧ done
-						  lsu_wait --> idle: done
-						</pre>
+					<img src="/lsu-fsm.png" alt="LSU 状态机" />
+					<p class="small center">LSU 主状态机（TLB 检查 / PTW / 请求 / 等待响应）</p>
 				</div>
 				<div>延迟执行：分派时仅写入 ROB，不入发射队列；
 					ROB 到提交头部时再交付 LSU/CSRU 执行，优先保证正确性与实现稳定性。</div>

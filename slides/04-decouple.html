@@ -5,21 +5,8 @@
 		<div class="two-col-3-2" style="gap: 0.6em;">
 			<div>
 				<div>
-					<pre class="mermaid">
-		flowchart LR
-		  subgraph FE["FrontEnd"]
-			IFU["IFU (4-stage, iTLB/PTW)"]
-			PRED["Predict (CU/IGU/BHT/IJTC/RAS)"]
-			IFU -- "pc/inst" --> PRED
-			PRED -- "predict_dnpc" --> IFU
-		  end
-		  IQ["Instruction Queue (depth=4)"]
-		  subgraph BE["BackEnd"]
-			BEPIPE["Decode -> Rename -> Dispatch -> Issue -> Exec -> WB -> Late -> Commit"]
-		  end
-		  IFU -- "inst/pc/ghr" --> IQ
-		  IQ -- "in" --> BEPIPE
-						</pre>
+					<img src="/fe-be-arch.png" alt="前后端解耦架构图" />
+					<p class="small center">前后端解耦架构（FE / IQ / BE）</p>
 				</div>
 				<div style="font-size: 0.62em; line-height: 1.55; margin-top: 0.35em;">
 					前端（FrontEnd）负责取指与分支预测，后端（BackEnd）负责指令执行。
@@ -69,7 +56,7 @@
 			</div>
 			<div style="font-size: 0.72em; line-height: 1.65;">
 				<div>
-					<img src="public/decouple-debug-microbench.png" alt="Spike 前端 MicroBench 结果"
+					<img src="/decouple-debug-microbench.png" alt="Spike 前端 MicroBench 结果"
 						style="max-width: 100%; max-height: 300px;" />
 				</div>
 				<div class="highlight-box green" style="font-size: 0.92em; margin-top: 0.45em;">

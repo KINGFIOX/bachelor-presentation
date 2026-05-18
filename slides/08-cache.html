@@ -4,22 +4,9 @@
 	<!-- 8.1 ICache 结构 -->
 	<section>
 		<h2>缓存 — VIPT ICache（4 路组相联）</h2>
-		<div class="two-col" style="gap: 0.5em;">
+		<div class="two-col">
 			<div>
-				<pre class="mermaid">
-stateDiagram-v2
-  idle --> lookup: in.req ∧ !fence_i (latch addr)
-  lookup --> lookup: hit ∧ in.req
-  lookup --> idle: hit ∧ !in.req
-  lookup --> miss: miss
-  miss --> replace: 1-cycle pass-through
-  replace --> refill: out.ar.fire (start burst)
-  replace --> idle: fence_i ∧ !out.ar.fire
-  replace --> fence_drain: fence_i ∧ out.ar.fire
-  refill --> idle: out.r.fire ∧ out.r.last (commit line, done)
-  refill --> fence_drain: fence_i (abort commit, keep drain)
-  fence_drain --> idle: out.r.fire ∧ out.r.last
-				</pre>
+				<img src="/icache-fsm.png" alt="ICache 状态机" />
 				<p class="small center">ICache FSM（idle/lookup/miss/replace/refill/fence_drain）</p>
 			</div>
 			<div style="font-size: 0.7em;">
@@ -38,8 +25,8 @@ stateDiagram-v2
 							<td>64 字节</td>
 						</tr>
 						<tr>
-							<td>组数 / 总容量</td>
-							<td>64 组 / <strong>16 KB</strong></td>
+							<td>组数</td>
+							<td>64 组</td>
 						</tr>
 						<tr>
 							<td>替换策略</td>
@@ -54,11 +41,6 @@ stateDiagram-v2
 				<div class="highlight-box" style="font-size: 0.92em;">
 					<strong>WRAP 突发</strong>：从缺失地址开始传输，到达行末尾后回绕，
 					<span class="green">第一拍数据即可返回 CPU</span>，最小化缺失延迟。
-				</div>
-				<div class="highlight-box green" style="font-size: 0.92em;">
-					<strong>缓存级差分测试</strong>：通过 DPI-C 接口将硬件 PLRU 与
-					软件模型逐次比对 hit/replace 决策，
-					定位仅靠架构状态比对无法发现的<span class="green">替换策略缺陷</span>。
 				</div>
 				<div class="highlight-box" style="font-size: 0.9em;">
 					<strong>fence_drain 的必要性</strong>：当 <code>fence_i</code> 到达时若 AXI 读突发已发出，
@@ -102,28 +84,8 @@ stateDiagram-v2
 			</div>
 			<div style="font-size: 0.65em;">
 				<h4 style="color: #2c3e50; font-size: 1em;">7 态主状态机概览</h4>
-				<pre class="mermaid">
-stateDiagram-v2
-  idle --> flush_scan: fence_i ∨ sfence_vma
-  idle --> lookup: in.req ∧ !wb_conflict
-
-  lookup --> lookup: hit ∧ in.req ∧ !wb_conflict
-  lookup --> idle: hit ∧ (!in.req ∨ wb_conflict)
-  lookup --> miss: miss
-
-  miss --> replace: !victim_dirty
-  miss --> replace: victim_dirty ∧ out.aw.fire
-
-  replace --> refill: ar_sent ∧ b_received
-  refill --> idle: out.r.fire ∧ out.r.last
-
-  flush_scan --> flush_wb: fw_dirty ∧ out.aw.fire
-  flush_scan --> flush_scan: !fw_dirty ∧ !scan_done
-  flush_scan --> idle: !fw_dirty ∧ scan_done
-
-  flush_wb --> flush_scan: wb_burst_done ∧ b_received ∧ !scan_done
-  flush_wb --> idle: wb_burst_done ∧ b_received ∧ scan_done
-				</pre>
+				<img src="/dcache-fsm.png" alt="DCache 状态机" />
+				<p class="small center">DCache FSM（idle/lookup/miss/replace/refill/flush_scan/flush_wb）</p>
 				<ul style="font-size: 0.95em; margin-top: 0.4em;">
 					<li><strong>replace 并行</strong>：W 通道写回脏数据 + B 等待回应 + AR 发起 refill 读</li>
 					<li><strong>refill</strong>：R 通道逐拍写回 data bank；R.last 时更新 tag/valid/dirty + 推进 PLRU</li>
@@ -140,16 +102,14 @@ stateDiagram-v2
 			<div>
 				<h4 style="color: #2c3e50; font-size: 0.85em;">fence.i：分离式 L1 的指令-数据一致性</h4>
 				<p style="font-size: 0.7em; line-height: 1.6;">
-					典型场景 = Bootloader 拷贝指令到 SDRAM 后跳转执行（自修改代码）：</p>
+					典型场景： Bootloader 拷贝指令到 SDRAM 后跳转执行（自修改代码）</p>
 				<div
 					style="background: #f8f9fa; padding: 0.5em; border-radius: 6px; line-height: 2.3; font-size: 0.7em; text-align: center;">
-					<span class="pipeline-box">提交 fence.i</span>
+					<span class="pipeline-box">store inst -> .text</span>
 					<span style="color:#666;">-></span>
-					<span class="pipeline-box red-bg">CommitStage io.flush</span><br />
-					<span class="pipeline-box orange-bg">DCache flush_scan -> wb</span>
+					<span class="pipeline-box red-bg"><strong>fence.i</strong></span>
 					<span style="color:#666;">-></span>
-					<span class="pipeline-box green-bg">ICache 整片 invalidate</span><br />
-					<span class="pipeline-box purple-bg">IFU 重取指</span>
+					<span class="pipeline-box purple-bg">jump .text</span>
 				</div>
 				<div class="highlight-box" style="font-size: 0.78em;">
 					RISC-V 将 fence.i 划入 <strong>Zifencei 扩展</strong>，
@@ -157,7 +117,7 @@ stateDiagram-v2
 				</div>
 			</div>
 			<div>
-				<h4 style="color: #2c3e50; font-size: 0.85em;">DMA <-> DCache 一致性（virtio-disk）</h4>
+				<h4 style="color: #2c3e50; font-size: 0.85em;">DMA ↔ DCache 一致性（virtio-disk）</h4>
 				<p style="font-size: 0.7em; line-height: 1.6;">
 					xv6 移植时引入 virtio-disk DMA，与 CPU 共享 SDRAM；DMA 与 DCache 之间无硬件协议。
 					<strong>问题表现</strong>：
@@ -168,8 +128,8 @@ stateDiagram-v2
 				</ul>
 				<div class="highlight-box green" style="font-size: 0.78em;">
 					<strong>软件侧解决</strong>：在所有触发/终结 DMA 的 MMIO 前后插入 fence，
-					复用 DCache <code>flush_scan→flush_wb</code> 路径将脏行刷回 + 整片失效。
-					<span class="green">硬件侧不引入跨主设备同步结构</span>。
+					使整片 DCache/ICache 失效，确保 CPU 与 DMA 看到的内存一致。
+					硬件侧不引入跨主设备同步结构。
 				</div>
 				<div class="citation">未来工作：MESI 嗅探或 AXI4-ACE/CHI 一致性互连</div>
 			</div>
