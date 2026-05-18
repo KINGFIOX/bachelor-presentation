@@ -108,10 +108,6 @@
 			<small>一般操作系统会开启中断/异常委托，操作系统运行在 s-mode 下，
 				几乎所有的中断/异常都需要转发给操作系统，由操作系统管理。 </small>
 		</div>
-		<div class="highlight-box green" style="font-size: 0.7em; margin-top: 0.35em;">
-			<strong>中断注入时机</strong>：CommitStage 在 ROB 头部指令正常提交后（更新 ArchRAT、释放 old_prd）
-			再触发中断 trap；中断 epc 设为<strong>下一条 PC</strong>，使中断返回后从正确位置继续。
-		</div>
 	</section>
 
 	<section>
