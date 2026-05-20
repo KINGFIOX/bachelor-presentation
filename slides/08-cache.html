@@ -75,22 +75,22 @@
 							<td>Write Buffer：写命中不阻塞主 FSM</td>
 						</tr>
 					</tbody>
+					<div class="highlight-box" style="font-size: 0.95em; margin-top: 0.4em;">
+						<strong>与 ICache 的核心差异</strong>：DCache 多了 <span class="accent">dirty</span> 状态，
+						这需要两方面的额外努力：
+						<ul style="margin: 0.3em 0 0 0;">
+							<li><strong>miss -> replace</strong>：使用 <span class="green">AXI4 突发写事务</span>
+								将脏行回写 SDRAM，再发起 refill</li>
+							<li><strong>fence</strong>：<span class="green">逐组逐路扫描</span>，
+								遇到脏 cacheline 需要回写 SDRAM，而不是简单地 invalidate 全部 cacheline</li>
+						</ul>
+					</div>
 				</table>
-				<div class="highlight-box" style="font-size: 0.92em;">
-					<strong>Write Buffer 机制</strong>：lookup 命中写时把 (index/way/beat/wstrb/wdata) 推入单项缓冲，
-					下一周期由独立 FSM 完成按字节掩码合并，
-					<span class="green">主 FSM 当拍即可接受下一请求</span>。
-				</div>
 			</div>
 			<div style="font-size: 0.65em;">
 				<h4 style="color: #2c3e50; font-size: 1em;">7 态主状态机概览</h4>
 				<img src="/dcache-fsm.png" alt="DCache 状态机" />
 				<p class="small center">DCache FSM（idle/lookup/miss/replace/refill/flush_scan/flush_wb）</p>
-				<ul style="font-size: 0.95em; margin-top: 0.4em;">
-					<li><strong>replace 并行</strong>：W 通道写回脏数据 + B 等待回应 + AR 发起 refill 读</li>
-					<li><strong>refill</strong>：R 通道逐拍写回 data bank；R.last 时更新 tag/valid/dirty + 推进 PLRU</li>
-					<li><strong>flush 流程</strong>：fence.i / sfence.vma 触发，逐组逐路扫描，遇脏行就写回</li>
-				</ul>
 			</div>
 		</div>
 	</section>
